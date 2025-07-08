@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+
 class TeamNode(BaseNode):
     __primaryproperty__: ClassVar[str] = "teamname"
     __primarylabel__: ClassVar[str] = "Team"
@@ -43,7 +44,6 @@ def read_root():
 
 @app.post("/teams/")
 async def create_team(team: TeamNode):
-
     team.create()
 
     return team
@@ -51,19 +51,23 @@ async def create_team(team: TeamNode):
 
 @app.get("/teams/")
 async def get_teams() -> list[TeamNode]:
-
     return TeamNode.match_nodes()
 
 
 @app.get("/teams/{pp}")
 async def get_team(pp: str) -> Optional[TeamNode]:
-
     return TeamNode.match(pp)
+
+
+@app.delete("/teams/{pp}")
+async def delete_team(pp: str):
+    TeamNode.delete(pp)
+
+    return {"message": "Team deleted successfully"}
 
 
 @app.post("/team-members/")
 async def create_team_member(member: TeamMemberNode, team_name: str):
-
     team = TeamNode.match(team_name)
 
     if team is None:
@@ -79,11 +83,16 @@ async def create_team_member(member: TeamMemberNode, team_name: str):
 
 @app.get("/team-members/")
 async def get_team_members() -> list[TeamMemberNode]:
-
     return TeamMemberNode.match_nodes()
 
 
 @app.get("/team-members/{pp}")
 async def get_team_member(pp: str) -> Optional[TeamMemberNode]:
-
     return TeamMemberNode.match(pp)
+
+
+@app.delete("/team-members/{pp}")
+async def delete_team_member(pp: str):
+    TeamMemberNode.delete(pp)
+
+    return {"message": "Team member deleted successfully"}
