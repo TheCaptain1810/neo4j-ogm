@@ -1,0 +1,267 @@
+// ==========================================
+// IMPROVED NEO4J SCHEMA FOR DOCUMENT MANAGEMENT SYSTEM
+// ==========================================
+
+// Node: Document
+// Core document properties from SharePoint/OneDrive
+CREATE (:Document {
+  id: string,                    // Unique identifier (e.g., 01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K)
+  name: string,                  // Document name (e.g., BGS borehole 426100 (SU72SW51).pdf)
+  label: string,                 // Document label (e.g., BGS borehole 426100 (SU72SW51).pdf)
+  size: integer,                 // File size in bytes (e.g., 3040)
+  file_name: string,             // File name from JSON (e.g., null in some cases)
+  source: string,                // Source of the document (e.g., sharepoint)
+  type: string,                  // Document type (e.g., application/json)
+  createdDateTime: datetime,     // Creation timestamp (e.g., 2024-12-17T10:31:25Z)
+  lastModifiedDateTime: datetime, // Last modified timestamp (e.g., 2024-12-17T10:31:25Z)
+  webUrl: string,                // URL to access the document
+  downloadUrl: string,           // Download URL (SharePoint download link)
+  driveId: string,               // Drive ID
+  siteId: string,                // Site ID
+  status: string,                // Status (e.g., N/A)
+  description: string            // AI-generated document description
+})
+
+// Node: FileMetadata
+// File system and technical metadata
+CREATE (:FileMetadata {
+  mimeType: string,              // MIME type (e.g., application/pdf)
+  quickXorHash: string,          // File hash for integrity
+  sharedScope: string,           // Sharing scope (e.g., users)
+  createdDateTime: datetime,     // File system creation time
+  lastModifiedDateTime: datetime // File system last modified time
+})
+
+// Node: Version
+// Document version tracking using eTag/cTag
+CREATE (:Version {
+  eTag: string,                  // eTag for versioning (e.g., "{AD57B405-4826-4162-8CA7-B406103C6FCA},1")
+  cTag: string,                  // cTag for concurrency (e.g., "c:{AD57B405-4826-4162-8CA7-B406103C6FCA},1")
+  timestamp: datetime,           // Version timestamp
+  versionNumber: integer         // Sequential version number
+})
+
+// Node: User
+// User who created or modified documents
+CREATE (:User {
+  id: string,                    // User ID (e.g., 354a020c-cf84-4e30-afd3-07ba0b07c4fc)
+  email: string,                 // User email (e.g., tom@hoppa.ai)
+  displayName: string            // User display name (e.g., Tom Goldsmith)
+})
+
+// Node: Folder
+// Document storage location
+CREATE (:Folder {
+  id: string,                    // Folder ID (e.g., 01FCBACZKAABKJMBSJT5CJHMDH26OD3W33)
+  name: string,                  // Folder name (e.g., Borehole Records - Petersfield)
+  path: string,                  // Full folder path
+  driveType: string,             // Drive type (e.g., documentLibrary)
+  driveId: string,               // Drive ID
+  siteId: string                 // Site ID
+})
+
+// Node: Session
+// Processing session information
+CREATE (:Session {
+  sessionId: string,             // Session ID (e.g., soft-mails-cry)
+  sessionName: string,           // Session name (e.g., Engineering Design - Ground Investigation Records)
+  createdAt: datetime,           // Creation timestamp
+  createdBy: string,             // Creator name
+  fileCount: integer,            // Number of files processed
+  completedAt: datetime,         // Completion timestamp (nullable)
+  status: string,                // Status (e.g., draft, completed)
+  warnings: integer,             // Number of warnings
+  rowCount: integer              // Row count
+})
+
+// Node: Classifier
+// Classification system definition
+CREATE (:Classifier {
+  id: string,                    // Classifier ID (e.g., ISO1, ISO2)
+  name: string,                  // Classifier name (e.g., Project, Originator)
+  isHierarchy: boolean,          // Whether classifier supports hierarchy
+  parentId: string,              // Parent classifier ID (nullable)
+  prompt: string,                // AI prompt for classification
+  description: string            // Classifier description
+})
+
+// Node: ClassifierData
+// Specific classification codes within a classifier
+CREATE (:ClassifierData {
+  classifierId: string,          // Parent classifier ID
+  code: string,                  // Classification code (e.g., PFPS, BGS)
+  description: string,           // Code description
+  prompt: string                 // Specific prompt for this code (nullable)
+})
+
+// Node: Classification
+// Applied classification to a document
+CREATE (:Classification {
+  documentId: string,            // Document being classified
+  classifierId: string,          // Classifier used
+  code: string,                  // Applied classification code
+  codeDescription: string,       // Description of the code
+  certainty: string,             // Certainty level (e.g., high, medium, low)
+  explanation: string,           // AI explanation for classification
+  appliedAt: datetime            // When classification was applied
+})
+
+// Node: BGSClassification
+// BGS-specific classification (from aiEdits.json)
+CREATE (:BGSClassification {
+  documentId: string,            // Document ID
+  code: string,                  // BGS classification code (e.g., Ac_15_75_50)
+  explanation: string,           // Explanation for classification
+  tooltip: string,               // Tooltip description
+  appliedAt: datetime            // When classification was applied
+})
+
+// Node: BGSRecord
+// BGS-specific geological survey data
+CREATE (:BGSRecord {
+  bgsId: string,                 // BGS Identification Number (e.g., 426100)
+  bgsReference: string,          // BGS Reference (e.g., SU72SW51)
+  gridReferenceNorthings: integer, // Grid Northings coordinate
+  gridReferenceEastings: integer,  // Grid Eastings coordinate
+  quarterSheet: string,          // Quarter sheet reference
+  registrationNumber: string     // Borehole registration number
+})
+
+// Node: Organisation
+// Organizations mentioned in documents
+CREATE (:Organisation {
+  name: string,                  // Organization name (cleaned/normalized)
+  originalName: string,          // Original name as mentioned in document
+  purpose: string,               // Organization's role/purpose
+  type: string                   // Organization type (e.g., survey, commercial, government)
+})
+
+// Node: DateRecord
+// Dates mentioned in documents with context
+CREATE (:DateRecord {
+  date: string,                  // Date as string (e.g., "21st September, 1942")
+  parsedDate: date,              // Parsed date object (nullable)
+  context: string,               // Context/purpose of the date
+  documentId: string             // Source document
+})
+
+// Node: Enricher
+// Data enrichment/extraction definitions
+CREATE (:Enricher {
+  name: string,                  // Enricher name (e.g., BGS ID)
+  searchTerm: string,            // Search term definition
+  body: string,                  // Detailed description
+  active: boolean                // Whether enricher is active
+})
+
+// Node: Extraction
+// Results of data extraction/enrichment
+CREATE (:Extraction {
+  enricherName: string,          // Name of enricher used
+  searchTerm: string,            // Search term that was applied
+  value: string,                 // Extracted value
+  documentId: string,            // Source document
+  extractedAt: datetime          // When extraction occurred
+})
+
+// Node: Address
+// Postal addresses and locations
+CREATE (:Address {
+  fullAddress: string,           // Complete address
+  components: [string],          // Address components (street, city, etc.)
+  documentId: string,            // Source document
+  addressType: string            // Type of address (e.g., site, office, brewery)
+})
+
+// Node: UserEdit
+// Manual corrections/overrides by users
+CREATE (:UserEdit {
+  documentId: string,            // Document being edited
+  field: string,                 // Field being edited (e.g., ISO4, ISO2)
+  originalValue: string,         // Original value
+  editedValue: string,           // New value after edit
+  editedBy: string,              // User who made the edit
+  editedAt: datetime,            // When edit was made
+  reason: string                 // Reason for edit (optional)
+})
+
+// ==========================================
+// RELATIONSHIPS
+// ==========================================
+
+// Document relationships
+CREATE (:Document)-[:HAS_METADATA]->(:FileMetadata)
+CREATE (:Document)-[:HAS_VERSION]->(:Version)
+CREATE (:Document)-[:CREATED_BY]->(:User)
+CREATE (:Document)-[:LAST_MODIFIED_BY]->(:User)
+CREATE (:Document)-[:STORED_IN]->(:Folder)
+CREATE (:Document)-[:PART_OF_SESSION]->(:Session)
+CREATE (:Document)-[:HAS_BGS_RECORD]->(:BGSRecord)
+
+// Session relationships
+CREATE (:Session)-[:CREATED_BY]->(:User)
+
+// Classification system relationships
+CREATE (:Classifier)-[:PARENT_OF]->(:Classifier)
+CREATE (:Classifier)-[:CONTAINS]->(:ClassifierData)
+CREATE (:ClassifierData)-[:BELONGS_TO]->(:Classifier)
+
+// Applied classifications
+CREATE (:Document)-[:HAS_CLASSIFICATION]->(:Classification)
+CREATE (:Classification)-[:USES_CLASSIFIER]->(:Classifier)
+CREATE (:Classification)-[:USES_CODE]->(:ClassifierData)
+CREATE (:Document)-[:HAS_BGS_CLASSIFICATION]->(:BGSClassification)
+
+// Content relationships
+CREATE (:Document)-[:MENTIONS_ORGANISATION]->(:Organisation)
+CREATE (:Document)-[:CONTAINS_DATE]->(:DateRecord)
+CREATE (:Document)-[:HAS_ADDRESS]->(:Address)
+
+// Enrichment relationships
+CREATE (:Document)-[:PROCESSED_BY]->(:Enricher)
+CREATE (:Document)-[:HAS_EXTRACTION]->(:Extraction)
+CREATE (:Extraction)-[:EXTRACTED_BY]->(:Enricher)
+
+// Edit tracking
+CREATE (:User)-[:MADE_EDIT]->(:UserEdit)
+CREATE (:UserEdit)-[:MODIFIES]->(:Document)
+CREATE (:UserEdit)-[:AFFECTS_CLASSIFICATION]->(:Classification)
+
+// Folder hierarchy
+CREATE (:Folder)-[:CONTAINS]->(:Folder)
+CREATE (:Folder)-[:CONTAINS]->(:Document)
+
+// Version relationships
+CREATE (:Version)-[:PREVIOUS_VERSION]->(:Version)
+CREATE (:User)-[:CREATED_VERSION]->(:Version)
+
+// Advanced relationships for querying
+CREATE (:Document)-[:SIMILAR_TO {similarity: float}]->(:Document)
+CREATE (:Classification)-[:CONFLICTS_WITH {reason: string}]->(:Classification)
+CREATE (:Organisation)-[:COLLABORATED_WITH]->(:Organisation)
+CREATE (:BGSRecord)-[:NEARBY {distance: float}]->(:BGSRecord)
+
+// ==========================================
+// INDEXES AND CONSTRAINTS
+// ==========================================
+
+// Unique constraints
+CREATE CONSTRAINT document_id_unique FOR (d:Document) REQUIRE d.id IS UNIQUE;
+CREATE CONSTRAINT user_id_unique FOR (u:User) REQUIRE u.id IS UNIQUE;
+CREATE CONSTRAINT session_id_unique FOR (s:Session) REQUIRE s.sessionId IS UNIQUE;
+CREATE CONSTRAINT classifier_id_unique FOR (c:Classifier) REQUIRE c.id IS UNIQUE;
+CREATE CONSTRAINT folder_id_unique FOR (f:Folder) REQUIRE f.id IS UNIQUE;
+
+// Performance indexes
+CREATE INDEX document_name_index FOR (d:Document) ON (d.name);
+CREATE INDEX document_created_index FOR (d:Document) ON (d.createdDateTime);
+CREATE INDEX bgs_id_index FOR (b:BGSRecord) ON (b.bgsId);
+CREATE INDEX bgs_reference_index FOR (b:BGSRecord) ON (b.bgsReference);
+CREATE INDEX classification_code_index FOR (c:Classification) ON (c.code);
+CREATE INDEX organisation_name_index FOR (o:Organisation) ON (o.name);
+CREATE INDEX extraction_value_index FOR (e:Extraction) ON (e.value);
+
+// Full-text search indexes
+CREATE FULLTEXT INDEX document_search FOR (d:Document) ON EACH [d.name, d.description];
+CREATE FULLTEXT INDEX organisation_search FOR (o:Organisation) ON EACH [o.name, o.purpose];
+CREATE FULLTEXT INDEX address_search FOR (a:Address) ON EACH [a.fullAddress];
