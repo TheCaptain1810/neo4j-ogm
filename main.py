@@ -8,10 +8,24 @@ import os
 from contextlib import asynccontextmanager
 import logging
 from enum import Enum
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Constants
+DOCUMENT_NOT_FOUND = "Document not found"
+USER_NOT_FOUND = "User not found"
+SESSION_NOT_FOUND = "Session not found"
+CLASSIFIER_NOT_FOUND = "Classifier not found"
+FOLDER_NOT_FOUND = "Folder not found"
+BGS_RECORD_NOT_FOUND = "BGS record not found"
+ORGANISATION_NOT_FOUND = "Organisation not found"
+ENRICHER_NOT_FOUND = "Enricher not found"
 
 # ==========================================
 # PYDANTIC MODELS
@@ -38,6 +52,7 @@ class DocumentResponse(DocumentCreate):
     pass
 
 class FileMetadataCreate(BaseModel):
+    documentId: str
     mimeType: str
     quickXorHash: str
     sharedScope: str
@@ -45,6 +60,7 @@ class FileMetadataCreate(BaseModel):
     lastModifiedDateTime: datetime
 
 class VersionCreate(BaseModel):
+    documentId: str
     eTag: str
     cTag: str
     timestamp: datetime
@@ -202,14 +218,17 @@ db = None
 async def lifespan(app: FastAPI):
     # Startup
     global db
-    neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-    neo4j_user = os.getenv("NEO4J_USER", "neo4j")
-    neo4j_password = os.getenv("NEO4J_PASSWORD", "password")
+    neo4j_uri = os.getenv("NEO4J_URI")
+    neo4j_user = os.getenv("NEO4J_USERNAME") 
+    neo4j_password = os.getenv("NEO4J_PASSWORD")
+    
+    if not all([neo4j_uri, neo4j_user, neo4j_password]):
+        raise ValueError("Missing Neo4j environment variables. Check your .env file.")
     
     db = Neo4jConnection(neo4j_uri, neo4j_user, neo4j_password)
     
     # Create constraints and indexes
-    await create_constraints_and_indexes()
+    create_constraints_and_indexes()
     
     logger.info("Connected to Neo4j database")
     yield
@@ -243,7 +262,7 @@ app.add_middleware(
 # DATABASE SETUP FUNCTIONS
 # ==========================================
 
-async def create_constraints_and_indexes():
+def create_constraints_and_indexes():
     """Create all constraints and indexes defined in the schema"""
     constraints_and_indexes = [
         # Unique constraints
@@ -277,6 +296,19 @@ async def create_constraints_and_indexes():
 # ==========================================
 # HELPER FUNCTIONS
 # ==========================================
+
+def convert_neo4j_datetime(obj):
+    """Convert Neo4j datetime objects to Python datetime objects"""
+    from neo4j.time import DateTime as Neo4jDateTime
+    
+    if isinstance(obj, dict):
+        return {key: convert_neo4j_datetime(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_neo4j_datetime(item) for item in obj]
+    elif isinstance(obj, Neo4jDateTime):
+        return obj.to_native()
+    else:
+        return obj
 
 def get_db():
     if db is None:
@@ -319,7 +351,7 @@ async def create_document(document: DocumentCreate, db_conn = Depends(get_db)):
     """
     
     try:
-        result = db_conn.execute_write_query(query, document.dict())
+        db_conn.execute_write_query(query, document.dict())
         return document
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error creating document: {str(e)}")
@@ -334,9 +366,11 @@ async def get_document(document_id: str, db_conn = Depends(get_db)):
     
     result = db_conn.execute_query(query, {"document_id": document_id})
     if not result:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
     
-    return DocumentResponse(**result[0]['d'])
+    # Convert Neo4j datetime objects to Python datetime objects
+    document_data = convert_neo4j_datetime(result[0]['d'])
+    return DocumentResponse(**document_data)
 
 @app.get("/documents/", response_model=List[DocumentResponse])
 async def list_documents(
@@ -354,7 +388,9 @@ async def list_documents(
     """
     
     result = db_conn.execute_query(query, {"limit": limit, "offset": offset})
-    return [DocumentResponse(**record['d']) for record in result]
+    # Convert Neo4j datetime objects to Python datetime objects
+    converted_result = [convert_neo4j_datetime(record['d']) for record in result]
+    return [DocumentResponse(**doc_data) for doc_data in converted_result]
 
 @app.put("/documents/{document_id}", response_model=DocumentResponse)
 async def update_document(
@@ -378,7 +414,7 @@ async def update_document(
     })
     
     if not result:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
     
     return document
 
@@ -394,7 +430,7 @@ async def delete_document(document_id: str, db_conn = Depends(get_db)):
     result = db_conn.execute_write_query(query, {"document_id": document_id})
     
     if not result or result[0]['deleted_count'] == 0:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
     
     return {"message": "Document deleted successfully"}
 
@@ -418,7 +454,7 @@ async def search_documents(search_query: SearchQuery, db_conn = Depends(get_db))
         result = db_conn.execute_query(query, search_query.dict())
         return [
             {
-                "document": DocumentResponse(**record['node']),
+                "document": DocumentResponse(**convert_neo4j_datetime(record['node'])),
                 "score": record['score']
             }
             for record in result
@@ -443,7 +479,7 @@ async def create_user(user: UserCreate, db_conn = Depends(get_db)):
     """
     
     try:
-        result = db_conn.execute_write_query(query, user.dict())
+        db_conn.execute_write_query(query, user.dict())
         return user
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error creating user: {str(e)}")
@@ -458,9 +494,10 @@ async def get_user(user_id: str, db_conn = Depends(get_db)):
     
     result = db_conn.execute_query(query, {"user_id": user_id})
     if not result:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=USER_NOT_FOUND)
     
-    return UserResponse(**result[0]['u'])
+    user_data = convert_neo4j_datetime(result[0]['u'])
+    return UserResponse(**user_data)
 
 # ==========================================
 # SESSION ENDPOINTS
@@ -485,7 +522,7 @@ async def create_session(session: SessionCreate, db_conn = Depends(get_db)):
     """
     
     try:
-        result = db_conn.execute_write_query(query, session.dict())
+        db_conn.execute_write_query(query, session.dict())
         return session
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error creating session: {str(e)}")
@@ -500,9 +537,10 @@ async def get_session(session_id: str, db_conn = Depends(get_db)):
     
     result = db_conn.execute_query(query, {"session_id": session_id})
     if not result:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail=SESSION_NOT_FOUND)
     
-    return result[0]['s']
+    session_data = convert_neo4j_datetime(result[0]['s'])
+    return session_data
 
 # ==========================================
 # CLASSIFICATION ENDPOINTS
@@ -529,7 +567,7 @@ async def create_classification(classification: ClassificationCreate, db_conn = 
     """
     
     try:
-        result = db_conn.execute_write_query(query, classification.dict())
+        db_conn.execute_write_query(query, classification.dict())
         return classification
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error creating classification: {str(e)}")
@@ -546,8 +584,8 @@ async def get_document_classifications(document_id: str, db_conn = Depends(get_d
     result = db_conn.execute_query(query, {"document_id": document_id})
     return [
         {
-            "classification": record['cl'],
-            "classifier": record['c']
+            "classification": convert_neo4j_datetime(record['cl']),
+            "classifier": convert_neo4j_datetime(record['c'])
         }
         for record in result
     ]
@@ -572,7 +610,7 @@ async def create_bgs_record(bgs_record: BGSRecordCreate, db_conn = Depends(get_d
     """
     
     try:
-        result = db_conn.execute_write_query(query, bgs_record.dict())
+        db_conn.execute_write_query(query, bgs_record.dict())
         return bgs_record
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error creating BGS record: {str(e)}")
@@ -587,9 +625,9 @@ async def get_bgs_record(bgs_id: str, db_conn = Depends(get_db)):
     
     result = db_conn.execute_query(query, {"bgs_id": bgs_id})
     if not result:
-        raise HTTPException(status_code=404, detail="BGS record not found")
+        raise HTTPException(status_code=404, detail=BGS_RECORD_NOT_FOUND)
     
-    return result[0]['b']
+    return convert_neo4j_datetime(result[0]['b'])
 
 # ==========================================
 # MIGRATION ENDPOINTS
@@ -655,7 +693,9 @@ async def get_document_stats(db_conn = Depends(get_db)):
     """
     
     result = db_conn.execute_query(query)
-    return result[0] if result else {}
+    if result:
+        return convert_neo4j_datetime(result[0])
+    return {}
 
 @app.get("/analytics/classification-stats")
 async def get_classification_stats(db_conn = Depends(get_db)):
@@ -669,7 +709,9 @@ async def get_classification_stats(db_conn = Depends(get_db)):
     """
     
     result = db_conn.execute_query(query)
-    return result[0] if result else {}
+    if result:
+        return convert_neo4j_datetime(result[0])
+    return {}
 
 # ==========================================
 # HEALTH CHECK
@@ -680,7 +722,7 @@ async def health_check(db_conn = Depends(get_db)):
     """Health check endpoint"""
     try:
         # Test database connection
-        result = db_conn.execute_query("RETURN 1 as test")
+        db_conn.execute_query("RETURN 1 as test")
         return {
             "status": "healthy",
             "database": "connected",
@@ -694,6 +736,449 @@ async def health_check(db_conn = Depends(get_db)):
             "timestamp": datetime.now().isoformat()
         }
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
+# ==========================================
+# FOLDER ENDPOINTS
+# ==========================================
+
+@app.post("/folders/")
+async def create_folder(folder: FolderCreate, db_conn = Depends(get_db)):
+    """Create a new folder"""
+    query = """
+    CREATE (f:Folder {
+        id: $id,
+        name: $name,
+        path: $path,
+        driveType: $driveType,
+        driveId: $driveId,
+        siteId: $siteId
+    })
+    RETURN f
+    """
+    
+    try:
+        db_conn.execute_write_query(query, folder.dict())
+        return folder
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating folder: {str(e)}")
+
+@app.get("/folders/{folder_id}")
+async def get_folder(folder_id: str, db_conn = Depends(get_db)):
+    """Get a folder by ID"""
+    query = """
+    MATCH (f:Folder {id: $folder_id})
+    RETURN f
+    """
+    
+    result = db_conn.execute_query(query, {"folder_id": folder_id})
+    if not result:
+        raise HTTPException(status_code=404, detail=FOLDER_NOT_FOUND)
+    
+    return convert_neo4j_datetime(result[0]['f'])
+
+# ==========================================
+# FILE METADATA ENDPOINTS
+# ==========================================
+
+@app.post("/file-metadata/")
+async def create_file_metadata(
+    metadata: FileMetadataCreate,
+    db_conn = Depends(get_db)
+):
+    """Create file metadata for a document"""
+    query = """
+    MATCH (d:Document {id: $documentId})
+    CREATE (fm:FileMetadata {
+        documentId: $documentId,
+        mimeType: $mimeType,
+        quickXorHash: $quickXorHash,
+        sharedScope: $sharedScope,
+        createdDateTime: $createdDateTime,
+        lastModifiedDateTime: $lastModifiedDateTime
+    })
+    CREATE (d)-[:HAS_METADATA]->(fm)
+    RETURN fm
+    """
+    
+    try:
+        db_conn.execute_write_query(query, metadata.dict())
+        return metadata
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating file metadata: {str(e)}")
+
+# ==========================================
+# VERSION ENDPOINTS
+# ==========================================
+
+@app.post("/versions/")
+async def create_version(
+    version: VersionCreate,
+    db_conn = Depends(get_db)
+):
+    """Create a version for a document"""
+    query = """
+    MATCH (d:Document {id: $documentId})
+    CREATE (v:Version {
+        documentId: $documentId,
+        eTag: $eTag,
+        cTag: $cTag,
+        timestamp: $timestamp,
+        versionNumber: $versionNumber
+    })
+    CREATE (d)-[:HAS_VERSION]->(v)
+    RETURN v
+    """
+    
+    try:
+        db_conn.execute_write_query(query, version.dict())
+        return version
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating version: {str(e)}")
+
+# ==========================================
+# CLASSIFIER ENDPOINTS
+# ==========================================
+
+@app.post("/classifiers/")
+async def create_classifier(classifier: ClassifierCreate, db_conn = Depends(get_db)):
+    """Create a new classifier"""
+    query = """
+    CREATE (c:Classifier {
+        id: $id,
+        name: $name,
+        isHierarchy: $isHierarchy,
+        parentId: $parentId,
+        prompt: $prompt,
+        description: $description
+    })
+    RETURN c
+    """
+    
+    try:
+        db_conn.execute_write_query(query, classifier.dict())
+        return classifier
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating classifier: {str(e)}")
+
+@app.get("/classifiers/{classifier_id}")
+async def get_classifier(classifier_id: str, db_conn = Depends(get_db)):
+    """Get a classifier by ID"""
+    query = """
+    MATCH (c:Classifier {id: $classifier_id})
+    RETURN c
+    """
+    
+    result = db_conn.execute_query(query, {"classifier_id": classifier_id})
+    if not result:
+        raise HTTPException(status_code=404, detail=CLASSIFIER_NOT_FOUND)
+    
+    return convert_neo4j_datetime(result[0]['c'])
+
+# ==========================================
+# CLASSIFIER DATA ENDPOINTS
+# ==========================================
+
+@app.post("/classifier-data/")
+async def create_classifier_data(classifier_data: ClassifierDataCreate, db_conn = Depends(get_db)):
+    """Create classifier data"""
+    query = """
+    MATCH (c:Classifier {id: $classifierId})
+    CREATE (cd:ClassifierData {
+        classifierId: $classifierId,
+        code: $code,
+        description: $description,
+        prompt: $prompt
+    })
+    CREATE (c)-[:HAS_DATA]->(cd)
+    RETURN cd
+    """
+    
+    try:
+        db_conn.execute_write_query(query, classifier_data.dict())
+        return classifier_data
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating classifier data: {str(e)}")
+
+# ==========================================
+# BGS CLASSIFICATION ENDPOINTS
+# ==========================================
+
+@app.post("/bgs/classifications/")
+async def create_bgs_classification(bgs_classification: BGSClassificationCreate, db_conn = Depends(get_db)):
+    """Create a BGS classification for a document"""
+    query = """
+    MATCH (d:Document {id: $documentId})
+    CREATE (bc:BGSClassification {
+        documentId: $documentId,
+        code: $code,
+        explanation: $explanation,
+        tooltip: $tooltip,
+        appliedAt: $appliedAt
+    })
+    CREATE (d)-[:HAS_BGS_CLASSIFICATION]->(bc)
+    RETURN bc
+    """
+    
+    try:
+        db_conn.execute_write_query(query, bgs_classification.dict())
+        return bgs_classification
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating BGS classification: {str(e)}")
+
+# ==========================================
+# ORGANIZATION ENDPOINTS
+# ==========================================
+
+@app.post("/organisations/")
+async def create_organisation(organisation: OrganisationCreate, db_conn = Depends(get_db)):
+    """Create a new organisation"""
+    query = """
+    CREATE (o:Organisation {
+        name: $name,
+        originalName: $originalName,
+        purpose: $purpose,
+        type: $type
+    })
+    RETURN o
+    """
+    
+    try:
+        db_conn.execute_write_query(query, organisation.dict())
+        return organisation
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating organisation: {str(e)}")
+
+@app.get("/organisations/{organisation_name}")
+async def get_organisation(organisation_name: str, db_conn = Depends(get_db)):
+    """Get an organisation by name"""
+    query = """
+    MATCH (o:Organisation {name: $organisation_name})
+    RETURN o
+    """
+    
+    result = db_conn.execute_query(query, {"organisation_name": organisation_name})
+    if not result:
+        raise HTTPException(status_code=404, detail=ORGANISATION_NOT_FOUND)
+    
+    return convert_neo4j_datetime(result[0]['o'])
+
+# ==========================================
+# DATE RECORD ENDPOINTS
+# ==========================================
+
+@app.post("/date-records/")
+async def create_date_record(date_record: DateRecordCreate, db_conn = Depends(get_db)):
+    """Create a date record for a document"""
+    query = """
+    MATCH (d:Document {id: $documentId})
+    CREATE (dr:DateRecord {
+        date: $date,
+        parsedDate: $parsedDate,
+        context: $context,
+        documentId: $documentId
+    })
+    CREATE (d)-[:HAS_DATE_RECORD]->(dr)
+    RETURN dr
+    """
+    
+    try:
+        db_conn.execute_write_query(query, date_record.dict())
+        return date_record
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating date record: {str(e)}")
+
+# ==========================================
+# ENRICHER ENDPOINTS
+# ==========================================
+
+@app.post("/enrichers/")
+async def create_enricher(enricher: EnricherCreate, db_conn = Depends(get_db)):
+    """Create a new enricher"""
+    query = """
+    CREATE (e:Enricher {
+        name: $name,
+        searchTerm: $searchTerm,
+        body: $body,
+        active: $active
+    })
+    RETURN e
+    """
+    
+    try:
+        db_conn.execute_write_query(query, enricher.dict())
+        return enricher
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating enricher: {str(e)}")
+
+@app.get("/enrichers/{enricher_name}")
+async def get_enricher(enricher_name: str, db_conn = Depends(get_db)):
+    """Get an enricher by name"""
+    query = """
+    MATCH (e:Enricher {name: $enricher_name})
+    RETURN e
+    """
+    
+    result = db_conn.execute_query(query, {"enricher_name": enricher_name})
+    if not result:
+        raise HTTPException(status_code=404, detail=ENRICHER_NOT_FOUND)
+    
+    return convert_neo4j_datetime(result[0]['e'])
+
+# ==========================================
+# EXTRACTION ENDPOINTS
+# ==========================================
+
+@app.post("/extractions/")
+async def create_extraction(extraction: ExtractionCreate, db_conn = Depends(get_db)):
+    """Create an extraction for a document"""
+    query = """
+    MATCH (d:Document {id: $documentId})
+    MATCH (e:Enricher {name: $enricherName})
+    CREATE (ex:Extraction {
+        enricherName: $enricherName,
+        searchTerm: $searchTerm,
+        value: $value,
+        documentId: $documentId,
+        extractedAt: $extractedAt
+    })
+    CREATE (d)-[:HAS_EXTRACTION]->(ex)
+    CREATE (ex)-[:USED_ENRICHER]->(e)
+    RETURN ex
+    """
+    
+    try:
+        db_conn.execute_write_query(query, extraction.dict())
+        return extraction
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating extraction: {str(e)}")
+
+# ==========================================
+# ADDRESS ENDPOINTS
+# ==========================================
+
+@app.post("/addresses/")
+async def create_address(address: AddressCreate, db_conn = Depends(get_db)):
+    """Create an address for a document"""
+    query = """
+    MATCH (d:Document {id: $documentId})
+    CREATE (a:Address {
+        fullAddress: $fullAddress,
+        components: $components,
+        documentId: $documentId,
+        addressType: $addressType
+    })
+    CREATE (d)-[:HAS_ADDRESS]->(a)
+    RETURN a
+    """
+    
+    try:
+        db_conn.execute_write_query(query, address.dict())
+        return address
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating address: {str(e)}")
+
+# ==========================================
+# USER EDIT ENDPOINTS
+# ==========================================
+
+@app.post("/user-edits/")
+async def create_user_edit(user_edit: UserEditCreate, db_conn = Depends(get_db)):
+    """Create a user edit record"""
+    query = """
+    MATCH (d:Document {id: $documentId})
+    MATCH (u:User {id: $editedBy})
+    CREATE (ue:UserEdit {
+        documentId: $documentId,
+        field: $field,
+        originalValue: $originalValue,
+        editedValue: $editedValue,
+        editedBy: $editedBy,
+        editedAt: $editedAt,
+        reason: $reason
+    })
+    CREATE (d)-[:HAS_USER_EDIT]->(ue)
+    CREATE (ue)-[:EDITED_BY]->(u)
+    RETURN ue
+    """
+    
+    try:
+        db_conn.execute_write_query(query, user_edit.dict())
+        return user_edit
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error creating user edit: {str(e)}")
+
+# ==========================================
+# ADDITIONAL MISSING ENDPOINTS
+# ==========================================
+
+@app.get("/users/")
+async def list_users(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db_conn = Depends(get_db)
+):
+    """List all users with pagination"""
+    query = """
+    MATCH (u:User)
+    RETURN u
+    ORDER BY u.displayName
+    SKIP $offset
+    LIMIT $limit
+    """
+    
+    result = db_conn.execute_query(query, {"limit": limit, "offset": offset})
+    converted_result = [convert_neo4j_datetime(record['u']) for record in result]
+    return [UserResponse(**user_data) for user_data in converted_result]
+
+@app.get("/sessions/")
+async def list_sessions(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db_conn = Depends(get_db)
+):
+    """List all sessions with pagination"""
+    query = """
+    MATCH (s:Session)
+    RETURN s
+    ORDER BY s.createdAt DESC
+    SKIP $offset
+    LIMIT $limit
+    """
+    
+    result = db_conn.execute_query(query, {"limit": limit, "offset": offset})
+    return [convert_neo4j_datetime(record['s']) for record in result]
+
+@app.get("/classifiers/")
+async def list_classifiers(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db_conn = Depends(get_db)
+):
+    """List all classifiers with pagination"""
+    query = """
+    MATCH (c:Classifier)
+    RETURN c
+    ORDER BY c.name
+    SKIP $offset
+    LIMIT $limit
+    """
+    
+    result = db_conn.execute_query(query, {"limit": limit, "offset": offset})
+    return [convert_neo4j_datetime(record['c']) for record in result]
+
+@app.get("/bgs/records/")
+async def list_bgs_records(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db_conn = Depends(get_db)
+):
+    """List all BGS records with pagination"""
+    query = """
+    MATCH (b:BGSRecord)
+    RETURN b
+    ORDER BY b.bgsId
+    SKIP $offset
+    LIMIT $limit
+    """
+    
+    result = db_conn.execute_query(query, {"limit": limit, "offset": offset})
+    return [convert_neo4j_datetime(record['b']) for record in result]
