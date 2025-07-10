@@ -243,7 +243,7 @@ async def lifespan(app: FastAPI):
 # ==========================================
 
 app = FastAPI(
-    title="Document Management System API",
+    title="Neo4J - FastAPI",
     description="Neo4j-based document management system with FastAPI",
     version="1.0.0",
     lifespan=lifespan

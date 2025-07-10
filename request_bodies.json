@@ -1,0 +1,907 @@
+{
+  "users": {
+    "endpoint": "/users/",
+    "method": "POST",
+    "body": {
+      "id": "354a020c-cf84-4e30-afd3-07ba0b07c4fc",
+      "email": "tom@hoppa.ai",
+      "displayName": "Tom Goldsmith"
+    }
+  },
+  "folders": {
+    "endpoint": "/folders/",
+    "method": "POST",
+    "body": {
+      "id": "01FCBACZKAABKJMBSJT5CJHMDH26OD3W33",
+      "name": "Borehole Records - Petersfield",
+      "path": "/drives/b!CPeuVHbWjUyD_9doA6Td6m8HS9IQoW9DtDb__nkwj-M92i-qf_-pRKp11I7IA7Pu/root:/Main/Sample Documents/Borehole Records - Petersfield",
+      "driveType": "documentLibrary",
+      "driveId": "b!CPeuVHbWjUyD_9doA6Td6m8HS9IQoW9DtDb__nkwj-M92i-qf_-pRKp11I7IA7Pu",
+      "siteId": "54aef708-d676-4c8d-83ff-d76803a4ddea"
+    }
+  },
+  "documents": {
+    "endpoint": "/documents/",
+    "method": "POST",
+    "body": {
+      "id": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+      "name": "BGS borehole 426100 (SU72SW51).pdf",
+      "label": "BGS borehole 426100 (SU72SW51).pdf",
+      "size": 3040,
+      "file_name": null,
+      "source": "sharepoint",
+      "type": "application/pdf",
+      "createdDateTime": "2024-12-17T10:31:25Z",
+      "lastModifiedDateTime": "2024-12-17T10:31:25Z",
+      "webUrl": "https://hoppatechnologies.sharepoint.com/sites/SharePointDemoSite/Shared%20Documents/Main/Sample%20Documents/Borehole%20Records%20-%20Petersfield/BGS%20borehole%20426100%20(SU72SW51).pdf",
+      "downloadUrl": "https://hoppatechnologies.sharepoint.com/sites/SharePointDemoSite/_layouts/15/download.aspx?UniqueId=ad57b405-4826-4162-8ca7-b406103c6fca&Translate=false&tempauth=v1.eyJzaXRlaWQiOiI1NGFlZjcwOC1kNjc2LTRjOGQtODNmZi1kNzY4MDNhNGRkZWEiLCJhcHBfZGlzcGxheW5hbWUiOiJIb3BwYSIsImFwcGlkIjoiZmEyY2Y0YzUtZjM5ZC00Zjc1LWEzMjAtMDI5MWFkMmYxMGM1IiwiYXVkIjoiMDAwMDAwMDMtMDAwMC0wZmYxLWNlMDAtMDAwMDAwMDAwMDAwL2hvcHBhdGVjaG5vbG9naWVzLnNoYXJlcG9pbnQuY29tQGJhYWNjMGViLTA5MGYtNGZjOC05ZjczLWQ4YWY0ZGE5NzUwZCIsImV4cCI6IjE3NTA5NTA2NDkifQ.CkAKDGVudHJhX2NsYWltcxIwQ01paTljSUdFQUFhRm5CV05XWkRiVTVwVFZWSFpUTnlOMVEyVjNSbFFVRXFBQT09CjIKCmFjdG9yYXBwaWQSJDAwMDAwMDAzLTAwMDAtMDAwMC1jMDAwLTAwMDAwMDAwMDAwMAoKCgRzbmlkEgI2NBILCOy93JWpsZo-EAUaDTQwLjEyNi40MS4xNjIqLFhFaU9pZHNZU29tRUpBREtnRkhiRldockdBZ0J0c1lNQ3RDTkt6dGhVZVk9MJk dislikesBOAFCEKGr7AiWQADQLJpfTCAo47xKEGhhc2hlZHByb29mdG9rZW5SCFsia21zaSJdaiQwMDJlYjkwOS1mOTFmLWY0NGEtNWJjYy1jMDBkYmQ5NjU3YjFyKTBoLmZ8bWVtYmVyc2hpcHwxMDAzMjAwMzcyNzUwM2FkQGxpdmUuY29tegEyggESCevArLoPCchPEZ9z2K9NqXUNkgEDVG9tmgEJR29sZHNtaXRoogEMdG9tQGhvcHBhLmFpqgEQMTAwMzIwMDM3Mjc1MDNBRLIBgQFteWZpbGVzLnJlYWQgYWxsZmlsZXMucmVhZCBhbGxmaW unhealthy0b0b2c0e37a6c4ce4aa6d7c7572e1e4</x Jonah0b0b2c0e37a6c4ce4aa6d7c7572e1e4",
+      "driveId": "b!CPeuVHbWjUyD_9doA6Td6m8HS9IQoW9DtDb__nkwj-M92i-qf_-pRKp11I7IA7Pu",
+      "siteId": "54aef708-d676-4c8d-83ff-d76803a4ddea",
+      "status": "N/A",
+      "description": "This document is titled \"BGS Borehole 426100 (SU72SW51)\" and is a PDF file from the British Geological Survey (BGS). The document is identified by BGS ID 426100 and BGS Reference SU72SW51, corresponding to a specific location within the British National Grid at coordinates 474880, 123280."
+    }
+  },
+  "file_metadata": {
+    "endpoint": "/file-metadata/",
+    "method": "POST",
+    "body": {
+      "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+      "mimeType": "application/pdf",
+      "quickXorHash": "yXrJBwDlOIJTPw9eEQO6o2UT8NE=",
+      "sharedScope": "users",
+      "createdDateTime": "2024-12-17T10:31:25Z",
+      "lastModifiedDateTime": "2024-12-17T10:31:25Z"
+    }
+  },
+  "sessions": {
+    "endpoint": "/sessions/",
+    "method": "POST",
+    "body": {
+      "sessionId": "soft-mails-cry",
+      "sessionName": "Engineering Design - Ground Investigation Records",
+      "createdAt": "2024-11-09T15:28:55.609Z",
+      "createdBy": "354a020c-cf84-4e30-afd3-07ba0b07c4fc",
+      "fileCount": 52,
+      "completedAt": null,
+      "status": "draft",
+      "warnings": 0,
+      "rowCount": 0
+    }
+  },
+  "bgs_classifications": [
+    {
+      "endpoint": "/bgs/classifications/",
+      "method": "POST",
+      "body": {
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "code": "Ac_15_75_50",
+        "explanation": "The document primarily focuses on borehole records and geological assessments, which align closely with geotechnical investigating, making this the most appropriate classification.",
+        "tooltip": "Geotechnical investigating",
+        "appliedAt": "2024-12-17T10:31:25Z"
+      }
+    }
+  ],
+  "classifiers": [
+    {
+      "endpoint": "/classifiers/",
+      "method": "POST",
+      "body": {
+        "id": "ISO1",
+        "name": "Project",
+        "isHierarchy": false,
+        "parentId": null,
+        "prompt": "Identify any keywords or codes related to project names, phases, specific locations, or team allocations.",
+        "description": "Identifies the project or area linked to this document."
+      }
+    },
+    {
+      "endpoint": "/classifiers/",
+      "method": "POST",
+      "body": {
+        "id": "ISO2",
+        "name": "Originator",
+        "isHierarchy": false,
+        "parentId": null,
+        "prompt": "Identify any organization names, initials, or references indicating authorship or originating party.",
+        "description": "Determines the organization originating this document."
+      }
+    },
+    {
+      "endpoint": "/classifiers/",
+      "method": "POST",
+      "body": {
+        "id": "ISO3",
+        "name": "Functional Breakdown",
+        "isHierarchy": false,
+        "parentId": null,
+        "prompt": "Identify terms pointing to business functions or domains, such as finance, risk, commercial, legal, or operations.",
+        "description": "Defines the document’s functional area, e.g., finance or legal."
+      }
+    },
+    {
+      "endpoint": "/classifiers/",
+      "method": "POST",
+      "body": {
+        "id": "ISO4",
+        "name": "Spatial Breakdown",
+        "isHierarchy": false,
+        "parentId": null,
+        "prompt": "Identify references to physical layouts, levels, specific locations, site planning, or building zones.",
+        "description": "Specifies the physical area, such as a site or floor plan."
+      }
+    },
+    {
+      "endpoint": "/classifiers/",
+      "method": "POST",
+      "body": {
+        "id": "ISO5",
+        "name": "Type",
+        "isHierarchy": false,
+        "parentId": null,
+        "prompt": "Identify document format types like technical drawings, schematics, reports, or visual aids.",
+        "description": "Categorizes the document type, such as drawing or model."
+      }
+    },
+    {
+      "endpoint": "/classifiers/",
+      "method": "POST",
+      "body": {
+        "id": "ISO6",
+        "name": "Discipline",
+        "isHierarchy": false,
+        "parentId": null,
+        "prompt": "Identify terms related to specific fields like architecture, engineering, or project management.",
+        "description": "Specifies associated professional discipline."
+      }
+    }
+  ],
+  "classifier_data": [
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO1",
+        "code": "XXXV",
+        "description": "Non-specific to project",
+        "prompt": ""
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO1",
+        "code": "HOPPA",
+        "description": "Hoppa Technologies Limited",
+        "prompt": ""
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO1",
+        "code": "EHCRA",
+        "description": "East Hampshire Petersfield Climate Resilience Audit & Geological Assessments",
+        "prompt": null
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO2",
+        "code": "HOP",
+        "description": "Hoppa Technologies",
+        "prompt": "Locate mentions of 'Hoppa Technologies' or shortened references."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO2",
+        "code": "SER",
+        "description": "Generic Services Provider; unspecified",
+        "prompt": "Identify mentions of generic terms like 'service provider', 'contractor', or 'subcontractor'."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO2",
+        "code": "CLN",
+        "description": "Generic Client Organisation; unspecified",
+        "prompt": "Search for generic client-related terms like 'client', 'customer', 'organization'."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO2",
+        "code": "BGS",
+        "description": "British Geological Survey",
+        "prompt": null
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO3",
+        "code": "ZZ",
+        "description": "Applies to all functional areas",
+        "prompt": "Confirm if applicable across all functions or departments."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO3",
+        "code": "XX",
+        "description": "Non-specific to functional area",
+        "prompt": "Check for non-functional or general terms, indicating broad relevance."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO3",
+        "code": "FN",
+        "description": "Financial, commercial, risk",
+        "prompt": "Identify any references to financial terms, economic analysis, risk management, or corporate finance."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO3",
+        "code": "LG",
+        "description": "Legal, insurance, liability",
+        "prompt": "Locate mentions of legal compliance, contracts, liability, or regulatory terms."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO3",
+        "code": "VG",
+        "description": "Surveys; geotechnical, environmental, other",
+        "prompt": null
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO3",
+        "code": "HS",
+        "description": "Health and Safety",
+        "prompt": null
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO3",
+        "code": "TP",
+        "description": "Town, infrastructure planning",
+        "prompt": null
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO3",
+        "code": "ED",
+        "description": "Engineering",
+        "prompt": null
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO3",
+        "code": "AC",
+        "description": "Approvals & consents",
+        "prompt": null
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO4",
+        "code": "ZZ",
+        "description": "Relevant to all physical areas",
+        "prompt": "Confirm if relevant across all physical sites, levels, or sections."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO4",
+        "code": "XX",
+        "description": "Non-specific to physical areas",
+        "prompt": "Identify terms showing no specific physical location or layout."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO4",
+        "code": "SP",
+        "description": "Site Plan; layouts",
+        "prompt": "Look for terms related to site-wide layouts, zoning, or external areas."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO4",
+        "code": "FP",
+        "description": "Floor Plan; layouts",
+        "prompt": "Identify mentions of floor plans, interior layouts, or vertical arrangement across floors."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO5",
+        "code": "D",
+        "description": "Drawing",
+        "prompt": "Locate information in the form of a graphical depiction of shape, size, or assembly of a physical part, usually to scale."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO5",
+        "code": "G",
+        "description": "Diagram",
+        "prompt": "Locate graphical or symbolic depictions showing system functions, object relationships, or behavior using elements like graphs."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO5",
+        "code": "I",
+        "description": "Image",
+        "prompt": "Locate static images or pictures that do not define relationships between objects."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO5",
+        "code": "L",
+        "description": "List",
+        "prompt": "Locate information presented in columns and rows, such as tables, spreadsheets, or datasets."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO5",
+        "code": "M",
+        "description": "Model",
+        "prompt": "Locate two- or three-dimensional descriptions, either physical or digital, of the ideal shape of objects and/or spaces."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO5",
+        "code": "T",
+        "description": "Textual",
+        "prompt": "Locate information in text form, including written instructions, descriptions, and narrative documents."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO5",
+        "code": "V",
+        "description": "Video/Audio",
+        "prompt": "Locate moving images, animations, or audio content."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO5",
+        "code": "R",
+        "description": "Report",
+        "prompt": null
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "A",
+        "description": "Architecture",
+        "prompt": "Look for architectural terms, blueprints, or structural design references."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "B",
+        "description": "Building surveying",
+        "prompt": "Identify building assessment, inspection, or land surveying terms."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "C",
+        "description": "Civil engineering",
+        "prompt": "Locate terms related to infrastructure, roads, and urban planning."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "D",
+        "description": "Demolition/Dismantling",
+        "prompt": "Identify demolition plans, dismantling instructions, or hazardous material removal."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "E",
+        "description": "Electrical engineering",
+        "prompt": "Search for electrical systems, circuitry, or power distribution."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "F",
+        "description": "Facilities/Asset management",
+        "prompt": "Identify terms related to asset management, maintenance, or facilities planning."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "G",
+        "description": "Ground engineering",
+        "prompt": "Locate mentions of soil analysis, foundation work, boreholes or geotechnical studies."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "H",
+        "description": "Highways/Transport engineering",
+        "prompt": "Identify transportation systems, road engineering, or highway construction."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "L",
+        "description": "Landscape architecture",
+        "prompt": "Look for landscape design, outdoor planning, or green space architecture."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "M",
+        "description": "Mechanical engineering",
+        "prompt": "Search for HVAC systems, machinery, or mechanical installations."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "O",
+        "description": "Other discipline",
+        "prompt": "Identify interdisciplinary, cross-functional, or unspecified disciplines."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "P",
+        "description": "Public health engineering",
+        "prompt": "Locate terms around sanitation, health infrastructure, or water quality."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "Q",
+        "description": "Quantity surveying",
+        "prompt": "Identify cost estimates, quantity measurement, or budget planning terms."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "R",
+        "description": "Project management",
+        "prompt": "Search for project timelines, milestones, or resource allocation."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "S",
+        "description": "Structural engineering",
+        "prompt": "Locate structural analysis, load-bearing calculations, or material specs."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "T",
+        "description": "Town and country planning",
+        "prompt": "Identify zoning laws, land use, or urban planning terminology."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "W",
+        "description": "Water engineering",
+        "prompt": "Look for water supply, drainage, or hydrology references."
+      }
+    },
+    {
+      "endpoint": "/classifier-data/",
+      "method": "POST",
+      "body": {
+        "classifierId": "ISO6",
+        "code": "X",
+        "description": "Non-discipline specific",
+        "prompt": "Identify terms not tied to a specific discipline."
+      }
+    }
+  ],
+  "classifications": [
+    {
+      "endpoint": "/classifications/",
+      "method": "POST",
+      "body": {
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "classifierId": "ISO1",
+        "code": "PFPS",
+        "codeDescription": "Petersfield Flood Preparedness Study",
+        "certainty": "high",
+        "explanation": "The document focuses on borehole data, water quality issues, and records concerning a well in Peters Field, which is directly relevant to flood preparedness and geological water resource management in the area. Its emphasis on historical water issues aligns it closely with the Petersfield Flood Preparedness Study.",
+        "appliedAt": "2024-12-17T10:31:25Z"
+      }
+    },
+    {
+      "endpoint": "/classifications/",
+      "method": "POST",
+      "body": {
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "classifierId": "ISO2",
+        "code": "BGS",
+        "codeDescription": "British Geological Survey",
+        "certainty": "high",
+        "explanation": "The document explicitly identifies itself as associated with the British Geological Survey (BGS) through its title and references to BGS ID and BGS record-keeping. Furthermore, it discusses borehole records and geological water resource management, which aligns directly with the responsibilities and focus of the BGS.",
+        "appliedAt": "2024-12-17T10:31:25Z"
+      }
+    },
+    {
+      "endpoint": "/classifications/",
+      "method": "POST",
+      "body": {
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "classifierId": "ISO3",
+        "code": "VG",
+        "codeDescription": "Surveys; geotechnical, environmental, other",
+        "certainty": "high",
+        "explanation": "The document details borehole records from the British Geological Survey, which involves geological surveys and environmental assessments related to water quality and geological resources. It specifically covers drilling and water level management, making 'VG' the most fitting classification.",
+        "appliedAt": "2024-12-17T10:31:25Z"
+      }
+    },
+    {
+      "endpoint": "/classifications/",
+      "method": "POST",
+      "body": {
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "classifierId": "ISO4",
+        "code": "ZZ",
+        "codeDescription": "Relevant to all physical areas",
+        "certainty": "high",
+        "explanation": "The document pertains to specific geological records and borehole activities, which are relevant to a range of physical locations and contexts. It describes surveys, historical data, and water quality issues, making it applicable to multiple physical areas.",
+        "appliedAt": "2024-12-17T10:31:25Z"
+      }
+    },
+    {
+      "endpoint": "/classifications/",
+      "method": "POST",
+      "body": {
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "classifierId": "ISO5",
+        "code": "R",
+        "codeDescription": "Report",
+        "certainty": "high",
+        "explanation": "The document is a detailed report from the British Geological Survey containing historical records, water quality issues, and borehole management details. This aligns closely with the 'Report' classification as it provides specified information and insights into geological studies.",
+        "appliedAt": "2024-12-17T10:31:25Z"
+      }
+    },
+    {
+      "endpoint": "/classifications/",
+      "method": "POST",
+      "body": {
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "classifierId": "ISO6",
+        "code": "W",
+        "codeDescription": "Water engineering",
+        "certainty": "high",
+        "explanation": "The document pertains to borehole records and water quality issues related to a well, emphasizing geological water resource management, which aligns closely with water engineering.",
+        "appliedAt": "2024-12-17T10:31:25Z"
+      }
+    }
+  ],
+  "bgs_records": {
+    "endpoint": "/bgs/records/",
+    "method": "POST",
+    "body": {
+      "bgsId": "426100",
+      "bgsReference": "SU72SW51",
+      "gridReferenceNorthings": 474880,
+      "gridReferenceEastings": 123280,
+      "quarterSheet": "SU 72 SE",
+      "registrationNumber": "45-58"
+    }
+  },
+  "enrichers": [
+    {
+      "endpoint": "/enrichers/",
+      "method": "POST",
+      "body": {
+        "name": "BGS ID",
+        "searchTerm": "BGS ID; Extract the British Geological Survey (BGS) Identification, only return VALUE as STRING no markup, special characters or quotation marks",
+        "body": "Extract the British Geological Survey (BGS) Identification",
+        "active": true
+      }
+    },
+    {
+      "endpoint": "/enrichers/",
+      "method": "POST",
+      "body": {
+        "name": "BGS Reference",
+        "searchTerm": "BGS Reference; Extract the British Geological Survey (BGS) Reference, only return VALUE as STRING no markup, special characters or quotation marks",
+        "body": "Extract the British Geological Survey (BGS) Reference",
+        "active": true
+      }
+    },
+    {
+      "endpoint": "/enrichers/",
+      "method": "POST",
+      "body": {
+        "name": "Organisations",
+        "searchTerm": "Organisations; Name any organisations mentioned in the production of the borehole record",
+        "body": "Name any organisations mentioned in the production of the borehole record",
+        "active": true
+      }
+    },
+    {
+      "endpoint": "/enrichers/",
+      "method": "POST",
+      "body": {
+        "name": "Dates",
+        "searchTerm": "Dates; Extract any dates from the record if found, such as when the survey was carried out. Also state their context (e.g. Survey date). Order from earliest date, semi-colon separated no markup or special characters",
+        "body": "Extract any dates from the record if found, such as when the survey was carried out. Also state their context (e.g. Survey date).",
+        "active": true
+      }
+    },
+    {
+      "endpoint": "/enrichers/",
+      "method": "POST",
+      "body": {
+        "name": "Grid Reference",
+        "searchTerm": "Grid Reference; Extract a grid reference (usually stored as Northings and Eastings), if found, only return integers in format NORTHINGS, EASTINGS",
+        "body": "Extract a grid reference (usually stored as Northings and Eastings), if found.",
+        "active": true
+      }
+    },
+    {
+      "endpoint": "/enrichers/",
+      "method": "POST",
+      "body": {
+        "name": "Address / Location",
+        "searchTerm": "Address / Location; Extract any postal addresses or site locations named on the record",
+        "body": "Extract any postal addresses or site locations named on the record",
+        "active": true
+      }
+    }
+  ],
+  "extractions": [
+    {
+      "endpoint": "/extractions/",
+      "method": "POST",
+      "body": {
+        "enricherName": "BGS ID",
+        "searchTerm": "BGS ID; Extract the British Geological Survey (BGS) Identification, only return VALUE as STRING no markup, special characters or quotation marks",
+        "value": "426100",
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "extractedAt": "2024-12-17T10:31:25Z"
+      }
+    },
+    {
+      "endpoint": "/extractions/",
+      "method": "POST",
+      "body": {
+        "enricherName": "BGS Reference",
+        "searchTerm": "BGS Reference; Extract the British Geological Survey (BGS) Reference, only return VALUE as STRING no markup, special characters or quotation marks",
+        "value": "SU72SW51",
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "extractedAt": "2024-12-17T10:31:25Z"
+      }
+    },
+    {
+      "endpoint": "/extractions/",
+      "method": "POST",
+      "body": {
+        "enricherName": "Organisations",
+        "searchTerm": "Organisations; Name any organisations mentioned in the production of the borehole record",
+        "value": "BGS - British Geological Survey, STRONG AND CO OF ROMSEY, LIMITED - Well management and water quality assessment.",
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "extractedAt": "2024-12-17T10:31:25Z"
+      }
+    },
+    {
+      "endpoint": "/extractions/",
+      "method": "POST",
+      "body": {
+        "enricherName": "Dates",
+        "searchTerm": "Dates; Extract any dates from the record if found, such as when the survey was carried out. Also state their context (e.g. Survey date). Order from earliest date, semi-colon separated no markup or special characters",
+        "value": "21st September, 1942 - Correspondence date related to well information;10th January, 1969 - Possibly a record or observation date;15th January, 1968 - Possibly a record or observation date",
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "extractedAt": "2024-12-17T10:31:25Z"
+      }
+    },
+    {
+      "endpoint": "/extractions/",
+      "method": "POST",
+      "body": {
+        "enricherName": "Grid Reference",
+        "searchTerm": "Grid Reference; Extract a grid reference (usually stored as Northings and Eastings), if found, only return integers in format NORTHINGS, EASTINGS",
+        "value": "Northings: 474880, Eastings: 123280",
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "extractedAt": "2024-12-17T10:31:25Z"
+      }
+    },
+    {
+      "endpoint": "/extractions/",
+      "method": "POST",
+      "body": {
+        "enricherName": "Address / Location",
+        "searchTerm": "Address / Location; Extract any postal addresses or site locations named on the record",
+        "value": "THE BREWERY, ROMSEY, HAMPSHIRE;THE DOLPHIN BREWERY, POOLE, DORSET;Exhibition Road, South Kensington, London, S.W.7",
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "extractedAt": "2024-12-17T10:31:25Z"
+      }
+    }
+  ],
+  "addresses": [
+    {
+      "endpoint": "/addresses/",
+      "method": "POST",
+      "body": {
+        "fullAddress": "THE BREWERY, ROMSEY, HAMPSHIRE",
+        "components": ["THE BREWERY", "ROMSEY", "HAMPSHIRE"],
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "addressType": "site"
+      }
+    },
+    {
+      "endpoint": "/addresses/",
+      "method": "POST",
+      "body": {
+        "fullAddress": "THE DOLPHIN BREWERY, POOLE, DORSET",
+        "components": ["THE DOLPHIN BREWERY", "POOLE", "DORSET"],
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "addressType": "site"
+      }
+    },
+    {
+      "endpoint": "/addresses/",
+      "method": "POST",
+      "body": {
+        "fullAddress": "Exhibition Road, South Kensington, London, S.W.7",
+        "components": [
+          "Exhibition Road",
+          "South Kensington",
+          "London",
+          "S.W.7"
+        ],
+        "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+        "addressType": "site"
+      }
+    }
+  ],
+  "user_edits": [
+    {
+      "endpoint": "/user-edits/",
+      "method": "POST",
+      "body": {
+        "documentId": "BGS borehole 426030 (SU72SE15).pdf",
+        "field": "ISO4",
+        "originalValue": "",
+        "editedValue": "XX",
+        "editedBy": "354a020c-cf84-4e30-afd3-07ba0b07c4fc",
+        "editedAt": "2024-12-17T10:31:25Z",
+        "reason": "Manual classification update"
+      }
+    },
+    {
+      "endpoint": "/user-edits/",
+      "method": "POST",
+      "body": {
+        "documentId": "BGS borehole 15952134 (SU72SW60).pdf",
+        "field": "ISO2",
+        "originalValue": "",
+        "editedValue": "CLN",
+        "editedBy": "354a020c-cf84-4e30-afd3-07ba0b07c4fc",
+        "editedAt": "2024-12-17T10:31:25Z",
+        "reason": "Manual classification update"
+      }
+    }
+  ]
+}
