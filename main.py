@@ -186,6 +186,126 @@ class StatusType(str, Enum):
     COMPLETED = "completed"
     PROCESSING = "processing"
 
+
+# New Pydantic models for JSON file responses
+class BGSClassificationResponse(BaseModel):
+    value: str
+    explanation: str
+    tooltip: str
+
+class AIEditsResponse(BaseModel):
+    BGS_ID: Dict[str, BGSClassificationResponse] = Field(..., alias="BGS ID")
+
+class DocumentUser(BaseModel):
+    email: str
+    id: str
+    displayName: str
+
+class ParentReference(BaseModel):
+    driveType: str
+    driveId: str
+    id: str
+    name: str
+    path: str
+    siteId: str
+
+class FileHashes(BaseModel):
+    quickXorHash: str
+
+class FileInfo(BaseModel):
+    hashes: FileHashes
+    mimeType: str
+
+class FileSystemInfo(BaseModel):
+    createdDateTime: datetime
+    lastModifiedDateTime: datetime
+
+class SharedInfo(BaseModel):
+    scope: str
+
+class DocumentJSONResponse(BaseModel):
+    name: str
+    source: str
+    file_name: Optional[str]
+    lastModifiedDate: Optional[datetime]
+    size: int
+    id: str
+    site_id: str
+    drive_id: str
+    label: str
+    type: str
+    downloadUrl: str = Field(..., alias="@microsoft.graph.downloadUrl")
+    createdBy: Dict[str, DocumentUser]
+    createdDateTime: datetime
+    eTag: str
+    lastModifiedBy: Dict[str, DocumentUser]
+    lastModifiedDateTime: datetime
+    parentReference: ParentReference
+    webUrl: str
+    cTag: str
+    file: FileInfo
+    fileSystemInfo: FileSystemInfo
+    shared: SharedInfo
+    status: str
+
+class FileMetadataJSONResponse(BaseModel):
+    size: int
+    id: str
+    label: str
+    createdBy_user_id: str = Field(..., alias="createdBy.user.id")
+    lastModifiedBy_user_id: str = Field(..., alias="lastModifiedBy.user.id")
+    parentReference_id: str = Field(..., alias="parentReference.id")
+    parentReference_path: str = Field(..., alias="parentReference.path")
+    file_mimeType: str = Field(..., alias="file.mimeType")
+
+class SessionPropertiesResponse(BaseModel):
+    session_name: str
+    session_id: str
+    created_at: datetime
+    created_by: str
+    file_count: int
+    completed_at: Optional[datetime]
+    status: str
+    warnings: int
+    row_count: int
+
+class UserEditEntry(BaseModel):
+    name: str
+    ISO2: Optional[Dict[str, str]] = None
+    ISO4: Optional[Dict[str, str]] = None
+
+class UserEditsResponse(BaseModel):
+    entries: Dict[str, UserEditEntry]
+
+class ClassifierData(BaseModel):
+    code: str
+    description: str
+    prompt: Optional[str]
+
+class Classifier(BaseModel):
+    id: str
+    name: str
+    isHierarchy: bool
+    parentId: Optional[str]
+    prompt: str
+    data: List[ClassifierData]
+    description: str
+
+class EnricherSearchTerm(BaseModel):
+    searchTerm: str
+    value: Optional[str]
+    name: str
+    body: str
+    active: bool
+
+class Enrichers(BaseModel):
+    tags: List[str]
+    searchTerms: List[EnricherSearchTerm]
+
+class SessionStandardResponse(BaseModel):
+    classifiers: List[Classifier]
+    enrichers: Enrichers
+
 # ==========================================
 # NEO4J DATABASE CONNECTION
 # ==========================================
@@ -1182,3 +1302,242 @@ async def list_bgs_records(
     
     result = db_conn.execute_query(query, {"limit": limit, "offset": offset})
     return [convert_neo4j_datetime(record['b']) for record in result]
+
+
+# ==========================================
+# NEW ENDPOINTS TO RETRIEVE JSON FILE DATA
+# ==========================================
+
+@app.get("/export/ai-edits", response_model=AIEditsResponse, tags=["Export"])
+async def get_ai_edits(db_conn = Depends(get_db)):
+    """Retrieve BGS classifications in the format of aiEdits.json"""
+    query = """
+    MATCH (d:Document)-[:HAS_BGS_CLASSIFICATION]->(bc:BGSClassification)
+    RETURN d.name AS document_name, bc.code AS value, bc.explanation AS explanation, bc.tooltip AS tooltip
+    """
+    
+    try:
+        result = db_conn.execute_query(query)
+        bgs_id = {
+            record['document_name']: {
+                "value": record['value'],
+                "explanation": record['explanation'],
+                "tooltip": record['tooltip']
+            } for record in result
+        }
+        return {"BGS ID": bgs_id}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error retrieving AI edits: {str(e)}")
+
+@app.get("/export/document/{document_id}", response_model=DocumentJSONResponse, tags=["Export"])
+async def get_document_json(document_id: str, db_conn = Depends(get_db)):
+    """Retrieve document data in the format of 01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K.json"""
+    query = """
+    MATCH (d:Document {id: $document_id})
+    MATCH (d)-[:HAS_METADATA]->(fm:FileMetadata)
+    MATCH (d)-[:HAS_USER_EDIT]->(ue:UserEdit)
+    MATCH (ue)-[:EDITED_BY]->(u:User)
+    MATCH (f:Folder {id: d.parentReference_id})
+    RETURN d, fm, u, f
+    """
+    
+    try:
+        result = db_conn.execute_query(query, {"document_id": document_id})
+        if not result:
+            raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
+        
+        record = result[0]
+        doc = convert_neo4j_datetime(record['d'])
+        fm = convert_neo4j_datetime(record['fm'])
+        user = convert_neo4j_datetime(record['u'])
+        folder = convert_neo4j_datetime(record['f'])
+        
+        return {
+            "name": doc['name'],
+            "source": doc['source'],
+            "file_name": doc['file_name'],
+            "lastModifiedDate": doc['lastModifiedDateTime'],
+            "size": doc['size'],
+            "id": doc['id'],
+            "site_id": doc['siteId'],
+            "drive_id": doc['driveId'],
+            "label": doc['label'],
+            "type": fm['mimeType'],
+            "@microsoft.graph.downloadUrl": doc['downloadUrl'],
+            "createdBy": {
+                "user": {
+                    "email": user['email'],
+                    "id": user['id'],
+                    "displayName": user['displayName']
+                }
+            },
+            "createdDateTime": doc['createdDateTime'],
+            "eTag": doc.get('eTag', ''),  # Assuming eTag might be stored or default to empty
+            "lastModifiedBy": {
+                "user": {
+                    "email": user['email'],
+                    "id": user['id'],
+                    "displayName": user['displayName']
+                }
+            },
+            "lastModifiedDateTime": doc['lastModifiedDateTime'],
+            "parentReference": {
+                "driveType": folder['driveType'],
+                "driveId": folder['driveId'],
+                "id": folder['id'],
+                "name": folder['name'],
+                "path": folder['path'],
+                "siteId": folder['siteId']
+            },
+            "webUrl": doc['webUrl'],
+            "cTag": doc.get('cTag', ''),  # Assuming cTag might be stored or default to empty
+            "file": {
+                "hashes": {
+                    "quickXorHash": fm['quickXorHash']
+                },
+                "mimeType": fm['mimeType']
+            },
+            "fileSystemInfo": {
+                "createdDateTime": fm['createdDateTime'],
+                "lastModifiedDateTime": fm['lastModifiedDateTime']
+            },
+            "shared": {
+                "scope": fm['sharedScope']
+            },
+            "status": doc['status']
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error retrieving document JSON: {str(e)}")
+
+@app.get("/export/document/{document_id}/metadata", response_model=FileMetadataJSONResponse, tags=["Export"])
+async def get_document_metadata_json(document_id: str, db_conn = Depends(get_db)):
+    """Retrieve document metadata in the format of 01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K_metadata.json"""
+    query = """
+    MATCH (d:Document {id: $document_id})
+    MATCH (d)-[:HAS_METADATA]->(fm:FileMetadata)
+    MATCH (d)-[:HAS_USER_EDIT]->(ue:UserEdit)
+    MATCH (ue)-[:EDITED_BY]->(u:User)
+    MATCH (f:Folder {id: d.parentReference_id})
+    RETURN d, fm, u
+    """
+    
+    try:
+        result = db_conn.execute_query(query, {"document_id": document_id})
+        if not result:
+            raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
+        
+        record = result[0]
+        doc = convert_neo4j_datetime(record['d'])
+        fm = convert_neo4j_datetime(record['fm'])
+        user = convert_neo4j_datetime(record['u'])
+        
+        return {
+            "size": doc['size'],
+            "id": doc['id'],
+            "label": doc['label'],
+            "createdBy.user.id": user['id'],
+            "lastModifiedBy.user.id": user['id'],
+            "parentReference.id": doc.get('parentReference_id', ''),  # Assuming stored in Document
+            "parentReference.path": doc.get('parentReference_path', ''),
+            "file.mimeType": fm['mimeType']
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error retrieving document metadata JSON: {str(e)}")
+
+@app.get("/export/session/{session_id}", response_model=SessionPropertiesResponse, tags=["Export"])
+async def get_session_properties(session_id: str, db_conn = Depends(get_db)):
+    """Retrieve session data in the format of session_properties (3).json"""
+    query = """
+    MATCH (s:Session {sessionId: $session_id})
+    MATCH (s)-[:CREATED_BY]->(u:User)
+    RETURN s, u.displayName AS created_by
+    """
+    
+    try:
+        result = db_conn.execute_query(query, {"session_id": session_id})
+        if not result:
+            raise HTTPException(status_code=404, detail=SESSION_NOT_FOUND)
+        
+        session = convert_neo4j_datetime(result[0]['s'])
+        return {
+            "session_name": session['sessionName'],
+            "session_id": session['sessionId'],
+            "created_at": session['createdAt'],
+            "created_by": result[0]['created_by'],
+            "file_count": session['fileCount'],
+            "completed_at": session['completedAt'],
+            "status": session['status'],
+            "warnings": session['warnings'],
+            "row_count": session['rowCount']
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error retrieving session properties: {str(e)}")
+
+@app.get("/export/user-edits", response_model=UserEditsResponse, tags=["Export"])
+async def get_user_edits(db_conn = Depends(get_db)):
+    """Retrieve user edits in the format of userEdits.json"""
+    query = """
+    MATCH (d:Document)-[:HAS_USER_EDIT]->(ue:UserEdit)
+    RETURN d.name AS document_name, ue.field AS field, ue.editedValue AS code
+    """
+    
+    try:
+        result = db_conn.execute_query(query)
+        entries = {}
+        for idx, record in enumerate(result):
+            document_name = record['document_name']
+            field = record['field']
+            code = record['code']
+            
+            if document_name not in entries:
+                entries[document_name] = {"name": document_name}
+            if field in ["ISO2", "ISO4"]:
+                entries[document_name][field] = {"code": code}
+            else:
+                entries[str(idx)] = {"name": document_name}
+        
+        return {"entries": entries}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error retrieving user edits: {str(e)}")
+
+@app.get("/export/session-standard", response_model=SessionStandardResponse, tags=["Export"])
+async def get_session_standard(db_conn = Depends(get_db)):
+    """Retrieve classifiers and enrichers in the format of session_standard (4).json"""
+    query = """
+    MATCH (c:Classifier)
+    OPTIONAL MATCH (c)-[:HAS_DATA]->(cd:ClassifierData)
+    WITH c, collect({code: cd.code, description: cd.description, prompt: cd.prompt}) AS classifier_data
+    MATCH (e:Enricher)
+    RETURN collect({
+        id: c.id,
+        name: c.name,
+        isHierarchy: c.isHierarchy,
+        parentId: c.parentId,
+        prompt: c.prompt,
+        description: c.description,
+        data: classifier_data
+    }) AS classifiers,
+    collect({
+        searchTerm: e.searchTerm,
+        value: e.value,
+        name: e.name,
+        body: e.body,
+        active: e.active
+    }) AS enrichers
+    """
+    
+    try:
+        result = db_conn.execute_query(query)
+        if not result:
+            return {"classifiers": [], "enrichers": {"tags": [], "searchTerms": []}}
+        
+        record = result[0]
+        return {
+            "classifiers": record['classifiers'],
+            "enrichers": {
+                "tags": [],
+                "searchTerms": record['enrichers']
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error retrieving session standard data: {str(e)}")
