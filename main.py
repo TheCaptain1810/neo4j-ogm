@@ -1,5 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Query, Path
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -9,6 +8,7 @@ from contextlib import asynccontextmanager
 import logging
 from enum import Enum
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 # Load environment variables
 load_dotenv()
@@ -47,6 +47,9 @@ class DocumentCreate(BaseModel):
     siteId: str
     status: str = "N/A"
     description: Optional[str] = None
+    parentReference_id: str
+    createdBy: str
+    lastModifiedBy: str
 
 class DocumentResponse(DocumentCreate):
     pass
@@ -148,6 +151,7 @@ class EnricherCreate(BaseModel):
     searchTerm: str
     body: str
     active: bool = True
+    value: Optional[str] = None
 
 class ExtractionCreate(BaseModel):
     enricherName: str
@@ -186,7 +190,6 @@ class StatusType(str, Enum):
     COMPLETED = "completed"
     PROCESSING = "processing"
 
-
 # New Pydantic models for JSON file responses
 class BGSClassificationResponse(BaseModel):
     value: str
@@ -194,7 +197,7 @@ class BGSClassificationResponse(BaseModel):
     tooltip: str
 
 class AIEditsResponse(BaseModel):
-    BGS_ID: Dict[str, BGSClassificationResponse] = Field(..., alias="BGS ID")
+    BGS_ID: List[Dict[str, BGSClassificationResponse]] = Field(..., alias="BGS ID")
 
 class DocumentUser(BaseModel):
     email: str
@@ -275,7 +278,7 @@ class UserEditEntry(BaseModel):
     ISO4: Optional[Dict[str, str]] = None
 
 class UserEditsResponse(BaseModel):
-    entries: Dict[str, UserEditEntry]
+    entries: Dict[str, UserEditEntry] = {}
 
 class ClassifierData(BaseModel):
     code: str
@@ -336,7 +339,6 @@ db = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     global db
     neo4j_uri = os.getenv("NEO4J_URI")
     neo4j_user = os.getenv("NEO4J_USERNAME") 
@@ -347,13 +349,11 @@ async def lifespan(app: FastAPI):
     
     db = Neo4jConnection(neo4j_uri, neo4j_user, neo4j_password)
     
-    # Create constraints and indexes
     create_constraints_and_indexes()
     
     logger.info("Connected to Neo4j database")
     yield
     
-    # Shutdown
     if db:
         db.close()
     logger.info("Disconnected from Neo4j database")
@@ -369,10 +369,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -383,16 +382,12 @@ app.add_middleware(
 # ==========================================
 
 def create_constraints_and_indexes():
-    """Create all constraints and indexes defined in the schema"""
     constraints_and_indexes = [
-        # Unique constraints
         "CREATE CONSTRAINT document_id_unique IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE",
         "CREATE CONSTRAINT user_id_unique IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE",
         "CREATE CONSTRAINT session_id_unique IF NOT EXISTS FOR (s:Session) REQUIRE s.sessionId IS UNIQUE",
         "CREATE CONSTRAINT classifier_id_unique IF NOT EXISTS FOR (c:Classifier) REQUIRE c.id IS UNIQUE",
         "CREATE CONSTRAINT folder_id_unique IF NOT EXISTS FOR (f:Folder) REQUIRE f.id IS UNIQUE",
-        
-        # Performance indexes
         "CREATE INDEX document_name_index IF NOT EXISTS FOR (d:Document) ON (d.name)",
         "CREATE INDEX document_created_index IF NOT EXISTS FOR (d:Document) ON (d.createdDateTime)",
         "CREATE INDEX bgs_id_index IF NOT EXISTS FOR (b:BGSRecord) ON (b.bgsId)",
@@ -400,8 +395,6 @@ def create_constraints_and_indexes():
         "CREATE INDEX classification_code_index IF NOT EXISTS FOR (c:Classification) ON (c.code)",
         "CREATE INDEX organisation_name_index IF NOT EXISTS FOR (o:Organisation) ON (o.name)",
         "CREATE INDEX extraction_value_index IF NOT EXISTS FOR (e:Extraction) ON (e.value)",
-        
-        # Full-text search indexes
         "CREATE FULLTEXT INDEX document_search IF NOT EXISTS FOR (d:Document) ON EACH [d.name, d.description]",
         "CREATE FULLTEXT INDEX organisation_search IF NOT EXISTS FOR (o:Organisation) ON EACH [o.name, o.purpose]",
         "CREATE FULLTEXT INDEX address_search IF NOT EXISTS FOR (a:Address) ON EACH [a.fullAddress]"
@@ -418,9 +411,7 @@ def create_constraints_and_indexes():
 # ==========================================
 
 def convert_neo4j_datetime(obj):
-    """Convert Neo4j datetime objects to Python datetime objects"""
     from neo4j.time import DateTime as Neo4jDateTime
-    
     if isinstance(obj, dict):
         return {key: convert_neo4j_datetime(value) for key, value in obj.items()}
     elif isinstance(obj, list):
@@ -435,12 +426,10 @@ def get_db():
         raise HTTPException(status_code=500, detail="Database not connected")
     return db
 
-
 # ROOT ENDPOINT
 @app.get("/", tags=["Root"])
 async def root():
     return {"message": "Hello, World!"}
-
 
 # ==========================================
 # DOCUMENT ENDPOINTS
@@ -448,8 +437,9 @@ async def root():
 
 @app.post("/documents/", response_model=DocumentResponse)
 async def create_document(document: DocumentCreate, db_conn = Depends(get_db)):
-    """Create a new document in the database"""
     query = """
+    MATCH (u:User {id: $createdBy})
+    MATCH (f:Folder {id: $parentReference_id})
     CREATE (d:Document {
         id: $id,
         name: $name,
@@ -465,8 +455,13 @@ async def create_document(document: DocumentCreate, db_conn = Depends(get_db)):
         driveId: $driveId,
         siteId: $siteId,
         status: $status,
-        description: $description
+        description: $description,
+        parentReference_id: $parentReference_id,
+        createdBy: $createdBy,
+        lastModifiedBy: $lastModifiedBy
     })
+    CREATE (d)-[:CREATED_BY]->(u)
+    CREATE (d)-[:STORED_IN]->(f)
     RETURN d
     """
     
@@ -478,7 +473,6 @@ async def create_document(document: DocumentCreate, db_conn = Depends(get_db)):
 
 @app.get("/documents/{document_id}", response_model=DocumentResponse)
 async def get_document(document_id: str, db_conn = Depends(get_db)):
-    """Get a document by ID"""
     query = """
     MATCH (d:Document {id: $document_id})
     RETURN d
@@ -488,7 +482,6 @@ async def get_document(document_id: str, db_conn = Depends(get_db)):
     if not result:
         raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
     
-    # Convert Neo4j datetime objects to Python datetime objects
     document_data = convert_neo4j_datetime(result[0]['d'])
     return DocumentResponse(**document_data)
 
@@ -498,7 +491,6 @@ async def list_documents(
     offset: int = Query(0, ge=0),
     db_conn = Depends(get_db)
 ):
-    """List all documents with pagination"""
     query = """
     MATCH (d:Document)
     RETURN d
@@ -508,7 +500,6 @@ async def list_documents(
     """
     
     result = db_conn.execute_query(query, {"limit": limit, "offset": offset})
-    # Convert Neo4j datetime objects to Python datetime objects
     converted_result = [convert_neo4j_datetime(record['d']) for record in result]
     return [DocumentResponse(**doc_data) for doc_data in converted_result]
 
@@ -518,7 +509,6 @@ async def update_document(
     document: DocumentCreate,
     db_conn = Depends(get_db)
 ):
-    """Update a document"""
     query = """
     MATCH (d:Document {id: $document_id})
     SET d += $properties
@@ -526,7 +516,7 @@ async def update_document(
     """
     
     properties = document.dict()
-    properties.pop('id', None)  # Don't update ID
+    properties.pop('id', None)
     
     result = db_conn.execute_write_query(query, {
         "document_id": document_id,
@@ -540,7 +530,6 @@ async def update_document(
 
 @app.delete("/documents/{document_id}")
 async def delete_document(document_id: str, db_conn = Depends(get_db)):
-    """Delete a document and all its relationships"""
     query = """
     MATCH (d:Document {id: $document_id})
     DETACH DELETE d
@@ -560,7 +549,6 @@ async def delete_document(document_id: str, db_conn = Depends(get_db)):
 
 @app.post("/search/documents")
 async def search_documents(search_query: SearchQuery, db_conn = Depends(get_db)):
-    """Full-text search for documents"""
     query = """
     CALL db.index.fulltext.queryNodes('document_search', $query)
     YIELD node, score
@@ -588,7 +576,6 @@ async def search_documents(search_query: SearchQuery, db_conn = Depends(get_db))
 
 @app.post("/users/", response_model=UserResponse)
 async def create_user(user: UserCreate, db_conn = Depends(get_db)):
-    """Create a new user"""
     query = """
     CREATE (u:User {
         id: $id,
@@ -606,7 +593,6 @@ async def create_user(user: UserCreate, db_conn = Depends(get_db)):
 
 @app.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str, db_conn = Depends(get_db)):
-    """Get a user by ID"""
     query = """
     MATCH (u:User {id: $user_id})
     RETURN u
@@ -625,8 +611,8 @@ async def get_user(user_id: str, db_conn = Depends(get_db)):
 
 @app.post("/sessions/")
 async def create_session(session: SessionCreate, db_conn = Depends(get_db)):
-    """Create a new processing session"""
     query = """
+    MATCH (u:User {displayName: $createdBy})
     CREATE (s:Session {
         sessionId: $sessionId,
         sessionName: $sessionName,
@@ -638,6 +624,7 @@ async def create_session(session: SessionCreate, db_conn = Depends(get_db)):
         warnings: $warnings,
         rowCount: $rowCount
     })
+    CREATE (s)-[:CREATED_BY]->(u)
     RETURN s
     """
     
@@ -647,20 +634,30 @@ async def create_session(session: SessionCreate, db_conn = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error creating session: {str(e)}")
 
-@app.get("/sessions/{session_id}")
+@app.get("/sessions/{session_id}", response_model=SessionPropertiesResponse)
 async def get_session(session_id: str, db_conn = Depends(get_db)):
-    """Get a session by ID"""
     query = """
     MATCH (s:Session {sessionId: $session_id})
-    RETURN s
+    MATCH (s)-[:CREATED_BY]->(u:User)
+    RETURN s, u.displayName AS created_by
     """
     
     result = db_conn.execute_query(query, {"session_id": session_id})
     if not result:
         raise HTTPException(status_code=404, detail=SESSION_NOT_FOUND)
     
-    session_data = convert_neo4j_datetime(result[0]['s'])
-    return session_data
+    session = convert_neo4j_datetime(result[0]['s'])
+    return {
+        "session_name": session['sessionName'],
+        "session_id": session['sessionId'],
+        "created_at": session['createdAt'],
+        "created_by": result[0]['created_by'],
+        "file_count": session['fileCount'],
+        "completed_at": session['completedAt'],
+        "status": session['status'],
+        "warnings": session['warnings'],
+        "row_count": session['rowCount']
+    }
 
 # ==========================================
 # CLASSIFICATION ENDPOINTS
@@ -668,7 +665,6 @@ async def get_session(session_id: str, db_conn = Depends(get_db)):
 
 @app.post("/classifications/")
 async def create_classification(classification: ClassificationCreate, db_conn = Depends(get_db)):
-    """Create a new classification for a document"""
     query = """
     MATCH (d:Document {id: $documentId})
     MATCH (c:Classifier {id: $classifierId})
@@ -694,7 +690,6 @@ async def create_classification(classification: ClassificationCreate, db_conn = 
 
 @app.get("/documents/{document_id}/classifications")
 async def get_document_classifications(document_id: str, db_conn = Depends(get_db)):
-    """Get all classifications for a document"""
     query = """
     MATCH (d:Document {id: $document_id})-[:HAS_CLASSIFICATION]->(cl:Classification)
     MATCH (cl)-[:USES_CLASSIFIER]->(c:Classifier)
@@ -716,7 +711,6 @@ async def get_document_classifications(document_id: str, db_conn = Depends(get_d
 
 @app.post("/bgs/records/")
 async def create_bgs_record(bgs_record: BGSRecordCreate, db_conn = Depends(get_db)):
-    """Create a BGS record"""
     query = """
     CREATE (b:BGSRecord {
         bgsId: $bgsId,
@@ -737,7 +731,6 @@ async def create_bgs_record(bgs_record: BGSRecordCreate, db_conn = Depends(get_d
 
 @app.get("/bgs/records/{bgs_id}")
 async def get_bgs_record(bgs_id: str, db_conn = Depends(get_db)):
-    """Get a BGS record by ID"""
     query = """
     MATCH (b:BGSRecord {bgsId: $bgs_id})
     RETURN b
@@ -755,9 +748,10 @@ async def get_bgs_record(bgs_id: str, db_conn = Depends(get_db)):
 
 @app.post("/migrate/bulk-documents")
 async def bulk_migrate_documents(documents: List[DocumentCreate], db_conn = Depends(get_db)):
-    """Bulk migrate documents to Neo4j"""
     query = """
     UNWIND $documents as doc
+    MATCH (u:User {id: doc.createdBy})
+    MATCH (f:Folder {id: doc.parentReference_id})
     CREATE (d:Document {
         id: doc.id,
         name: doc.name,
@@ -773,8 +767,13 @@ async def bulk_migrate_documents(documents: List[DocumentCreate], db_conn = Depe
         driveId: doc.driveId,
         siteId: doc.siteId,
         status: doc.status,
-        description: doc.description
+        description: doc.description,
+        parentReference_id: doc.parentReference_id,
+        createdBy: doc.createdBy,
+        lastModifiedBy: doc.lastModifiedBy
     })
+    CREATE (d)-[:CREATED_BY]->(u)
+    CREATE (d)-[:STORED_IN]->(f)
     RETURN count(d) as created_count
     """
     
@@ -790,9 +789,6 @@ async def bulk_migrate_documents(documents: List[DocumentCreate], db_conn = Depe
 
 @app.post("/migrate/link-document-relationships")
 async def link_document_relationships(db_conn = Depends(get_db)):
-    """Create relationships between documents and other entities"""
-    # This is a placeholder for relationship creation logic
-    # You would implement specific relationship creation based on your data
     return {"message": "Relationship linking completed"}
 
 # ==========================================
@@ -801,7 +797,6 @@ async def link_document_relationships(db_conn = Depends(get_db)):
 
 @app.get("/analytics/document-stats")
 async def get_document_stats(db_conn = Depends(get_db)):
-    """Get document statistics"""
     query = """
     MATCH (d:Document)
     RETURN 
@@ -819,7 +814,6 @@ async def get_document_stats(db_conn = Depends(get_db)):
 
 @app.get("/analytics/classification-stats")
 async def get_classification_stats(db_conn = Depends(get_db)):
-    """Get classification statistics"""
     query = """
     MATCH (cl:Classification)
     RETURN 
@@ -839,9 +833,7 @@ async def get_classification_stats(db_conn = Depends(get_db)):
 
 @app.get("/health")
 async def health_check(db_conn = Depends(get_db)):
-    """Health check endpoint"""
     try:
-        # Test database connection
         db_conn.execute_query("RETURN 1 as test")
         return {
             "status": "healthy",
@@ -862,7 +854,6 @@ async def health_check(db_conn = Depends(get_db)):
 
 @app.post("/folders/")
 async def create_folder(folder: FolderCreate, db_conn = Depends(get_db)):
-    """Create a new folder"""
     query = """
     CREATE (f:Folder {
         id: $id,
@@ -883,7 +874,6 @@ async def create_folder(folder: FolderCreate, db_conn = Depends(get_db)):
 
 @app.get("/folders/{folder_id}")
 async def get_folder(folder_id: str, db_conn = Depends(get_db)):
-    """Get a folder by ID"""
     query = """
     MATCH (f:Folder {id: $folder_id})
     RETURN f
@@ -904,7 +894,6 @@ async def create_file_metadata(
     metadata: FileMetadataCreate,
     db_conn = Depends(get_db)
 ):
-    """Create file metadata for a document"""
     query = """
     MATCH (d:Document {id: $documentId})
     CREATE (fm:FileMetadata {
@@ -934,7 +923,6 @@ async def create_version(
     version: VersionCreate,
     db_conn = Depends(get_db)
 ):
-    """Create a version for a document"""
     query = """
     MATCH (d:Document {id: $documentId})
     CREATE (v:Version {
@@ -960,7 +948,6 @@ async def create_version(
 
 @app.post("/classifiers/")
 async def create_classifier(classifier: ClassifierCreate, db_conn = Depends(get_db)):
-    """Create a new classifier"""
     query = """
     CREATE (c:Classifier {
         id: $id,
@@ -981,7 +968,6 @@ async def create_classifier(classifier: ClassifierCreate, db_conn = Depends(get_
 
 @app.get("/classifiers/{classifier_id}")
 async def get_classifier(classifier_id: str, db_conn = Depends(get_db)):
-    """Get a classifier by ID"""
     query = """
     MATCH (c:Classifier {id: $classifier_id})
     RETURN c
@@ -999,7 +985,6 @@ async def get_classifier(classifier_id: str, db_conn = Depends(get_db)):
 
 @app.post("/classifier-data/")
 async def create_classifier_data(classifier_data: ClassifierDataCreate, db_conn = Depends(get_db)):
-    """Create classifier data"""
     query = """
     MATCH (c:Classifier {id: $classifierId})
     CREATE (cd:ClassifierData {
@@ -1024,7 +1009,6 @@ async def create_classifier_data(classifier_data: ClassifierDataCreate, db_conn 
 
 @app.post("/bgs/classifications/")
 async def create_bgs_classification(bgs_classification: BGSClassificationCreate, db_conn = Depends(get_db)):
-    """Create a BGS classification for a document"""
     query = """
     MATCH (d:Document {id: $documentId})
     CREATE (bc:BGSClassification {
@@ -1050,7 +1034,6 @@ async def create_bgs_classification(bgs_classification: BGSClassificationCreate,
 
 @app.post("/organisations/")
 async def create_organisation(organisation: OrganisationCreate, db_conn = Depends(get_db)):
-    """Create a new organisation"""
     query = """
     CREATE (o:Organisation {
         name: $name,
@@ -1069,7 +1052,6 @@ async def create_organisation(organisation: OrganisationCreate, db_conn = Depend
 
 @app.get("/organisations/{organisation_name}")
 async def get_organisation(organisation_name: str, db_conn = Depends(get_db)):
-    """Get an organisation by name"""
     query = """
     MATCH (o:Organisation {name: $organisation_name})
     RETURN o
@@ -1087,7 +1069,6 @@ async def get_organisation(organisation_name: str, db_conn = Depends(get_db)):
 
 @app.post("/date-records/")
 async def create_date_record(date_record: DateRecordCreate, db_conn = Depends(get_db)):
-    """Create a date record for a document"""
     query = """
     MATCH (d:Document {id: $documentId})
     CREATE (dr:DateRecord {
@@ -1112,13 +1093,13 @@ async def create_date_record(date_record: DateRecordCreate, db_conn = Depends(ge
 
 @app.post("/enrichers/")
 async def create_enricher(enricher: EnricherCreate, db_conn = Depends(get_db)):
-    """Create a new enricher"""
     query = """
     CREATE (e:Enricher {
         name: $name,
         searchTerm: $searchTerm,
         body: $body,
-        active: $active
+        active: $active,
+        value: $value
     })
     RETURN e
     """
@@ -1131,7 +1112,6 @@ async def create_enricher(enricher: EnricherCreate, db_conn = Depends(get_db)):
 
 @app.get("/enrichers/{enricher_name}")
 async def get_enricher(enricher_name: str, db_conn = Depends(get_db)):
-    """Get an enricher by name"""
     query = """
     MATCH (e:Enricher {name: $enricher_name})
     RETURN e
@@ -1149,7 +1129,6 @@ async def get_enricher(enricher_name: str, db_conn = Depends(get_db)):
 
 @app.post("/extractions/")
 async def create_extraction(extraction: ExtractionCreate, db_conn = Depends(get_db)):
-    """Create an extraction for a document"""
     query = """
     MATCH (d:Document {id: $documentId})
     MATCH (e:Enricher {name: $enricherName})
@@ -1177,7 +1156,6 @@ async def create_extraction(extraction: ExtractionCreate, db_conn = Depends(get_
 
 @app.post("/addresses/")
 async def create_address(address: AddressCreate, db_conn = Depends(get_db)):
-    """Create an address for a document"""
     query = """
     MATCH (d:Document {id: $documentId})
     CREATE (a:Address {
@@ -1202,7 +1180,6 @@ async def create_address(address: AddressCreate, db_conn = Depends(get_db)):
 
 @app.post("/user-edits/")
 async def create_user_edit(user_edit: UserEditCreate, db_conn = Depends(get_db)):
-    """Create a user edit record"""
     query = """
     MATCH (d:Document {id: $documentId})
     MATCH (u:User {id: $editedBy})
@@ -1227,7 +1204,7 @@ async def create_user_edit(user_edit: UserEditCreate, db_conn = Depends(get_db))
         raise HTTPException(status_code=400, detail=f"Error creating user edit: {str(e)}")
 
 # ==========================================
-# ADDITIONAL MISSING ENDPOINTS
+# ADDITIONAL ENDPOINTS
 # ==========================================
 
 @app.get("/users/")
@@ -1236,7 +1213,6 @@ async def list_users(
     offset: int = Query(0, ge=0),
     db_conn = Depends(get_db)
 ):
-    """List all users with pagination"""
     query = """
     MATCH (u:User)
     RETURN u
@@ -1255,7 +1231,6 @@ async def list_sessions(
     offset: int = Query(0, ge=0),
     db_conn = Depends(get_db)
 ):
-    """List all sessions with pagination"""
     query = """
     MATCH (s:Session)
     RETURN s
@@ -1273,7 +1248,6 @@ async def list_classifiers(
     offset: int = Query(0, ge=0),
     db_conn = Depends(get_db)
 ):
-    """List all classifiers with pagination"""
     query = """
     MATCH (c:Classifier)
     RETURN c
@@ -1291,7 +1265,6 @@ async def list_bgs_records(
     offset: int = Query(0, ge=0),
     db_conn = Depends(get_db)
 ):
-    """List all BGS records with pagination"""
     query = """
     MATCH (b:BGSRecord)
     RETURN b
@@ -1303,14 +1276,12 @@ async def list_bgs_records(
     result = db_conn.execute_query(query, {"limit": limit, "offset": offset})
     return [convert_neo4j_datetime(record['b']) for record in result]
 
-
 # ==========================================
-# NEW ENDPOINTS TO RETRIEVE JSON FILE DATA
+# EXPORT ENDPOINTS
 # ==========================================
 
 @app.get("/export/ai-edits", response_model=AIEditsResponse, tags=["Export"])
 async def get_ai_edits(db_conn = Depends(get_db)):
-    """Retrieve BGS classifications in the format of aiEdits.json"""
     query = """
     MATCH (d:Document)-[:HAS_BGS_CLASSIFICATION]->(bc:BGSClassification)
     RETURN d.name AS document_name, bc.code AS value, bc.explanation AS explanation, bc.tooltip AS tooltip
@@ -1318,27 +1289,26 @@ async def get_ai_edits(db_conn = Depends(get_db)):
     
     try:
         result = db_conn.execute_query(query)
-        bgs_id = {
-            record['document_name']: {
+        bgs_id_list = [
+            {record['document_name']: {
                 "value": record['value'],
                 "explanation": record['explanation'],
                 "tooltip": record['tooltip']
-            } for record in result
-        }
-        return {"BGS ID": bgs_id}
+            }} for record in result
+        ]
+        return {"BGS ID": bgs_id_list}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error retrieving AI edits: {str(e)}")
 
 @app.get("/export/document/{document_id}", response_model=DocumentJSONResponse, tags=["Export"])
 async def get_document_json(document_id: str, db_conn = Depends(get_db)):
-    """Retrieve document data in the format of 01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K.json"""
     query = """
     MATCH (d:Document {id: $document_id})
     MATCH (d)-[:HAS_METADATA]->(fm:FileMetadata)
-    MATCH (d)-[:HAS_USER_EDIT]->(ue:UserEdit)
-    MATCH (ue)-[:EDITED_BY]->(u:User)
-    MATCH (f:Folder {id: d.parentReference_id})
-    RETURN d, fm, u, f
+    MATCH (d)-[:HAS_VERSION]->(v:Version)
+    MATCH (d)-[:CREATED_BY]->(u:User)
+    MATCH (d)-[:STORED_IN]->(f:Folder)
+    RETURN d, fm, v, u, f
     """
     
     try:
@@ -1349,6 +1319,7 @@ async def get_document_json(document_id: str, db_conn = Depends(get_db)):
         record = result[0]
         doc = convert_neo4j_datetime(record['d'])
         fm = convert_neo4j_datetime(record['fm'])
+        version = convert_neo4j_datetime(record['v'])
         user = convert_neo4j_datetime(record['u'])
         folder = convert_neo4j_datetime(record['f'])
         
@@ -1356,7 +1327,7 @@ async def get_document_json(document_id: str, db_conn = Depends(get_db)):
             "name": doc['name'],
             "source": doc['source'],
             "file_name": doc['file_name'],
-            "lastModifiedDate": doc['lastModifiedDateTime'],
+            "lastModifiedDate": None,
             "size": doc['size'],
             "id": doc['id'],
             "site_id": doc['siteId'],
@@ -1372,7 +1343,7 @@ async def get_document_json(document_id: str, db_conn = Depends(get_db)):
                 }
             },
             "createdDateTime": doc['createdDateTime'],
-            "eTag": doc.get('eTag', ''),  # Assuming eTag might be stored or default to empty
+            "eTag": version['eTag'],
             "lastModifiedBy": {
                 "user": {
                     "email": user['email'],
@@ -1390,7 +1361,7 @@ async def get_document_json(document_id: str, db_conn = Depends(get_db)):
                 "siteId": folder['siteId']
             },
             "webUrl": doc['webUrl'],
-            "cTag": doc.get('cTag', ''),  # Assuming cTag might be stored or default to empty
+            "cTag": version['cTag'],
             "file": {
                 "hashes": {
                     "quickXorHash": fm['quickXorHash']
@@ -1411,14 +1382,12 @@ async def get_document_json(document_id: str, db_conn = Depends(get_db)):
 
 @app.get("/export/document/{document_id}/metadata", response_model=FileMetadataJSONResponse, tags=["Export"])
 async def get_document_metadata_json(document_id: str, db_conn = Depends(get_db)):
-    """Retrieve document metadata in the format of 01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K_metadata.json"""
     query = """
     MATCH (d:Document {id: $document_id})
     MATCH (d)-[:HAS_METADATA]->(fm:FileMetadata)
-    MATCH (d)-[:HAS_USER_EDIT]->(ue:UserEdit)
-    MATCH (ue)-[:EDITED_BY]->(u:User)
-    MATCH (f:Folder {id: d.parentReference_id})
-    RETURN d, fm, u
+    MATCH (d)-[:CREATED_BY]->(u:User)
+    MATCH (d)-[:STORED_IN]->(f:Folder)
+    RETURN d, fm, u, f
     """
     
     try:
@@ -1430,6 +1399,7 @@ async def get_document_metadata_json(document_id: str, db_conn = Depends(get_db)
         doc = convert_neo4j_datetime(record['d'])
         fm = convert_neo4j_datetime(record['fm'])
         user = convert_neo4j_datetime(record['u'])
+        folder = convert_neo4j_datetime(record['f'])
         
         return {
             "size": doc['size'],
@@ -1437,8 +1407,8 @@ async def get_document_metadata_json(document_id: str, db_conn = Depends(get_db)
             "label": doc['label'],
             "createdBy.user.id": user['id'],
             "lastModifiedBy.user.id": user['id'],
-            "parentReference.id": doc.get('parentReference_id', ''),  # Assuming stored in Document
-            "parentReference.path": doc.get('parentReference_path', ''),
+            "parentReference.id": folder['id'],
+            "parentReference.path": folder['path'],
             "file.mimeType": fm['mimeType']
         }
     except Exception as e:
@@ -1446,7 +1416,6 @@ async def get_document_metadata_json(document_id: str, db_conn = Depends(get_db)
 
 @app.get("/export/session/{session_id}", response_model=SessionPropertiesResponse, tags=["Export"])
 async def get_session_properties(session_id: str, db_conn = Depends(get_db)):
-    """Retrieve session data in the format of session_properties (3).json"""
     query = """
     MATCH (s:Session {sessionId: $session_id})
     MATCH (s)-[:CREATED_BY]->(u:User)
@@ -1475,26 +1444,34 @@ async def get_session_properties(session_id: str, db_conn = Depends(get_db)):
 
 @app.get("/export/user-edits", response_model=UserEditsResponse, tags=["Export"])
 async def get_user_edits(db_conn = Depends(get_db)):
-    """Retrieve user edits in the format of userEdits.json"""
     query = """
     MATCH (d:Document)-[:HAS_USER_EDIT]->(ue:UserEdit)
-    RETURN d.name AS document_name, ue.field AS field, ue.editedValue AS code
+    RETURN d.id AS document_id, d.name AS document_name, ue.field AS field, ue.editedValue AS code
+    ORDER BY d.name
     """
     
     try:
         result = db_conn.execute_query(query)
         entries = {}
+        doc_names_seen = set()
+        
         for idx, record in enumerate(result):
+            document_id = record['document_id']
             document_name = record['document_name']
             field = record['field']
             code = record['code']
             
-            if document_name not in entries:
-                entries[document_name] = {"name": document_name}
+            key = document_name if document_name in [
+                "BGS borehole 426030 (SU72SE15).pdf",
+                "BGS borehole 15952134 (SU72SW60).pdf"
+            ] else str(idx) if document_name not in doc_names_seen else document_name
+            
+            if key not in entries:
+                entries[key] = {"name": document_name}
+                doc_names_seen.add(document_name)
+            
             if field in ["ISO2", "ISO4"]:
-                entries[document_name][field] = {"code": code}
-            else:
-                entries[str(idx)] = {"name": document_name}
+                entries[key][field] = {"code": code}
         
         return {"entries": entries}
     except Exception as e:
@@ -1502,7 +1479,6 @@ async def get_user_edits(db_conn = Depends(get_db)):
 
 @app.get("/export/session-standard", response_model=SessionStandardResponse, tags=["Export"])
 async def get_session_standard(db_conn = Depends(get_db)):
-    """Retrieve classifiers and enrichers in the format of session_standard (4).json"""
     query = """
     MATCH (c:Classifier)
     OPTIONAL MATCH (c)-[:HAS_DATA]->(cd:ClassifierData)
