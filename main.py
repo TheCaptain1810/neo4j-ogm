@@ -5,7 +5,6 @@ from typing import Optional, List
 from dotenv import load_dotenv
 import os
 import logging
-import asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -310,6 +309,9 @@ async def create_session(session: SessionCreate, db: Neo4jConnection = Depends(g
         RETURN s
         """
         result = await db.query(query, session.dict())
+        if not result:
+            logger.error(f"Session creation failed for {session.sessionId}: No result returned")
+            raise HTTPException(status_code=400, detail="Session creation failed: No result")
         logger.info(f"Created session: {session.sessionId}")
         return session
     except Exception as e:
@@ -469,9 +471,31 @@ async def export_session(session_id: str, db: Neo4jConnection = Depends(get_db))
         if not result:
             logger.warning(f"Session not found: {session_id}")
             raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+        
         session = result[0]["s"]
-        logger.info(f"Exported session: {session_id}")
-        return SessionCreate(**session)
+        logger.debug(f"Raw session data: {session}")
+        
+        # Ensure data matches original JSON structure
+        session_data = {
+            "sessionId": session["sessionId"],
+            "sessionName": session["sessionName"],
+            "createdAt": session["createdAt"],
+            "createdBy": session["createdBy"],
+            "fileCount": session["fileCount"],
+            "completedAt": session.get("completedAt"),
+            "status": session["status"],
+            "warnings": session["warnings"],
+            "rowCount": session["rowCount"]
+        }
+        
+        # Validate against SessionCreate model
+        try:
+            validated_session = SessionCreate(**session_data)
+            logger.info(f"Exported session: {session_id}")
+            return validated_session
+        except Exception as ve:
+            logger.error(f"Pydantic validation error for session {session_id}: {str(ve)}")
+            raise HTTPException(status_code=400, detail=f"Pydantic validation error: {str(ve)}")
     except Exception as e:
         logger.error(f"Error exporting session {session_id}: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error exporting session: {str(e)}")
@@ -503,7 +527,7 @@ async def export_session_standard(db: Neo4jConnection = Depends(get_db)):
                 parentId=classifier["parentId"], prompt=classifier["prompt"], description=classifier["description"]
             ))
         
-        enrichers = [EnricherCreate(**e) for e in enrichers_result]
+        enrichers = [EnricherCreate(**e["e"]) for e in enrichers_result]
         
         logger.info("Exported session-standard data")
         return SessionStandardExport(classifiers=classifiers, enrichers=enrichers)

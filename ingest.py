@@ -386,7 +386,8 @@ def ingest_user():
     """Ingest user data."""
     logger.info("Ingesting user data")
     try:
-        make_request("users/", USER_DATA)
+        response = make_request("users/", USER_DATA)
+        logger.info(f"User ingestion response: {response}")
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 400 and "Constraint violation" in e.response.text:
             logger.warning("User already exists, skipping")
@@ -397,7 +398,8 @@ def ingest_folder():
     """Ingest folder data."""
     logger.info("Ingesting folder data")
     try:
-        make_request("folders/", FOLDER_DATA)
+        response = make_request("folders/", FOLDER_DATA)
+        logger.info(f"Folder ingestion response: {response}")
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 400 and "Constraint violation" in e.response.text:
             logger.warning("Folder already exists, skipping")
@@ -408,7 +410,8 @@ def ingest_documents():
     """Ingest document data."""
     logger.info("Ingesting document data")
     try:
-        make_request("documents/", DOCUMENT_DATA)
+        response = make_request("documents/", DOCUMENT_DATA)
+        logger.info(f"Document ingestion response: {response}")
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 400 and "Constraint violation" in e.response.text:
             logger.warning("Document already exists, skipping")
@@ -416,7 +419,8 @@ def ingest_documents():
             raise
     for doc in ADDITIONAL_DOCUMENTS:
         try:
-            make_request("documents/", doc)
+            response = make_request("documents/", doc)
+            logger.info(f"Additional document {doc['id']} ingestion response: {response}")
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 400 and "Constraint violation" in e.response.text:
                 logger.warning(f"Document {doc['id']} already exists, skipping")
@@ -427,7 +431,8 @@ def ingest_file_metadata():
     """Ingest file metadata."""
     logger.info("Ingesting file metadata")
     try:
-        make_request("file-metadata/", FILE_METADATA_DATA)
+        response = make_request("file-metadata/", FILE_METADATA_DATA)
+        logger.info(f"File metadata ingestion response: {response}")
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 400 and "Constraint violation" in e.response.text:
             logger.warning("File metadata already exists, skipping")
@@ -438,7 +443,8 @@ def ingest_version():
     """Ingest version data."""
     logger.info("Ingesting version data")
     try:
-        make_request("versions/", VERSION_DATA)
+        response = make_request("versions/", VERSION_DATA)
+        logger.info(f"Version ingestion response: {response}")
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 400 and "Constraint violation" in e.response.text:
             logger.warning("Version already exists, skipping")
@@ -449,7 +455,8 @@ def ingest_session():
     """Ingest session data."""
     logger.info("Ingesting session data")
     try:
-        make_request("sessions/", SESSION_DATA)
+        response = make_request("sessions/", SESSION_DATA)
+        logger.info(f"Session ingestion response: {response}")
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 400 and "Constraint violation" in e.response.text:
             logger.warning("Session already exists, skipping")
@@ -469,7 +476,8 @@ def ingest_classifiers():
             "description": classifier["description"]
         }
         try:
-            make_request("classifiers/", classifier_data)
+            response = make_request("classifiers/", classifier_data)
+            logger.info(f"Classifier {classifier['id']} ingestion response: {response}")
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 400 and "Constraint violation" in e.response.text:
                 logger.warning(f"Classifier {classifier['id']} already exists, skipping")
@@ -477,12 +485,13 @@ def ingest_classifiers():
                 raise
         for data_item in classifier["data"]:
             try:
-                make_request("classifier-data/", {
+                response = make_request("classifier-data/", {
                     "classifierId": classifier["id"],
                     "code": data_item["code"],
                     "description": data_item["description"],
                     "prompt": data_item["prompt"]
                 })
+                logger.info(f"Classifier data {data_item['code']} for {classifier['id']} ingestion response: {response}")
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 400 and "Constraint violation" in e.response.text:
                     logger.warning(f"Classifier data {data_item['code']} for classifier {classifier['id']} already exists, skipping")
@@ -494,7 +503,8 @@ def ingest_enrichers():
     logger.info("Ingesting enricher data")
     for enricher in ENRICHER_DATA:
         try:
-            make_request("enrichers/", enricher)
+            response = make_request("enrichers/", enricher)
+            logger.info(f"Enricher {enricher['name']} ingestion response: {response}")
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 400 and "Constraint violation" in e.response.text:
                 logger.warning(f"Enricher {enricher['name']} already exists, skipping")
@@ -506,7 +516,8 @@ def ingest_bgs_classifications():
     logger.info("Ingesting BGS classifications")
     for bgs in BGS_CLASSIFICATION_DATA:
         try:
-            make_request("bgs/classifications/", bgs)
+            response = make_request("bgs/classifications/", bgs)
+            logger.info(f"BGS classification for document {bgs['documentId']} ingestion response: {response}")
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 400 and "Constraint violation" in e.response.text:
                 logger.warning(f"BGS classification for document {bgs['documentId']} already exists, skipping")
@@ -518,7 +529,8 @@ def ingest_user_edits():
     logger.info("Ingesting user edits")
     for edit in USER_EDIT_DATA:
         try:
-            make_request("user-edits/", edit)
+            response = make_request("user-edits/", edit)
+            logger.info(f"User edit for document {edit['documentId']} ingestion response: {response}")
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 400 and "Constraint violation" in e.response.text:
                 logger.warning(f"User edit for document {edit['documentId']} already exists, skipping")
