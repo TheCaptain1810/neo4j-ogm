@@ -1,6 +1,5 @@
 import requests
 import json
-from datetime import datetime
 import logging
 
 # Configure logging
@@ -10,74 +9,7 @@ logger = logging.getLogger(__name__)
 # FastAPI server URL
 BASE_URL = "http://localhost:6969"
 
-# JSON data from provided files (hardcoded for exact fidelity)
-# Note: For missing documents, only include minimal data from aiEdits.json and userEdits.json
-
-USER_DATA = {
-    "id": "354a020c-cf84-4e30-afd3-07ba0b07c4fc",
-    "email": "tom@hoppa.ai",
-    "displayName": "Tom Goldsmith"
-}
-
-FOLDER_DATA = {
-    "id": "01FCBACZKAABKJMBSJT5CJHMDH26OD3W33",
-    "name": "Borehole Records - Petersfield",
-    "path": "/drives/b!CPeuVHbWjUyD_9doA6Td6m8HS9IQoW9DtDb__nkwj-M92i-qf_-pRKp11I7IA7Pu/root:/Main/Sample Documents/Borehole Records - Petersfield",
-    "driveType": "documentLibrary",
-    "driveId": "b!CPeuVHbWjUyD_9doA6Td6m8HS9IQoW9DtDb__nkwj-M92i-qf_-pRKp11I7IA7Pu",
-    "siteId": "54aef708-d676-4c8d-83ff-d76803a4ddea"
-}
-
-DOCUMENT_DATA = {
-    "id": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
-    "name": "BGS borehole 426100 (SU72SW51).pdf",
-    "label": "BGS borehole 426100 (SU72SW51).pdf",
-    "size": 3040,
-    "file_name": None,
-    "source": "sharepoint",
-    "type": "application/pdf",
-    "createdDateTime": "2024-12-17T10:31:25Z",
-    "lastModifiedDateTime": "2024-12-17T10:31:25Z",
-    "webUrl": "https://hoppatechnologies.sharepoint.com/sites/SharePointDemoSite/Shared%20Documents/Main/Sample%20Documents/Borehole%20Records%20-%20Petersfield/BGS%20borehole%20426100%20(SU72SW51).pdf",
-    "downloadUrl": "https://hoppatechnologies.sharepoint.com/sites/SharePointDemoSite/_layouts/15/download.aspx?UniqueId=ad57b405-4826-4162-8ca7-b406103c6fca&Translate=false&tempauth=v1.eyJzaXRlaWQiOiI1NGFlZjcwOC1kNjc2LTRjOGQtODNmZi1kNzY4MDNhNGRkZWEiLCJhcHBfZGlzcGxheW5hbWUiOiJIb3BwYSIsImFwcGlkIjoiZmEyY2Y0YzUtZjM5ZC00Zjc1LWEzMjAtMDI5MWFkMmYxMGM1IiwiYXVkIjoiMDAwMDAwMDMtMDAwMC0wZmYxLWNlMDAtMDAwMDAwMDAwMDAwL2hvcHBhdGVjaG5vbG9naWVzLnNoYXJlcG9pbnQuY29tQGJhYWNjMGViLTA5MGYtNGZjOC05ZjczLWQ4YWY0ZGE5NzUwZCIsImV4cCI6IjE3NTA5NTA2NDkifQ.CkAKDGVudHJhX2NsYWltcxIwQ01paTljSUdFQUFhRm5CV05XWkRiVTVwVFZWSFpUTnlOMVEyVjNSbFFVRXFBQT09CjIKCmFjdG9yYXBwaWQSJDAwMDAwMDAzLTAwMDAtMDAwMC1jMDAwLTAwMDAwMDAwMDAwMAoKCgRzbmlkEgI2NBILCOy93JWpsZo-EAUaDTQwLjEyNi40MS4xNjIqLFhFaU9pZHNZU29tRUpBREtnRkhiRldockdBZ0J0c1lNQ3RDTkt6dGhVZVk9MJkBOAFCEKGr7AiWQADQLJpfTCAo47xKEGhhc2hlZHByb29mdG9rZW5SCFsia21zaSJdaiQwMDJlYjkwOS1mOTFmLWY0NGEtNWJjYy1jMDBkYmQ5NjU3YjFyKTBoLmZ8bWVtYmVyc2hpcHwxMDAzMjAwMzcyNzUwM2FkQGxpdmUuY29tegEyggESCevArLoPCchPEZ9z2K9NqXUNkgEDVG9tmgEJR29sZHNtaXRoogEMdG9tQGhvcHBhLmFpqgEQMTAwMzIwMDM3Mjc1MDNBRLIBgQFteWZpbGVzLnJlYWQgYWxsZmlsZXMucmVhZCBhbGxmaWxlcy53cml0ZSBhbGxzaXRlcy5yZWFkIHNlbGVjdGVkc2l0ZXMgQmFzaWNQcm9qZWN0QWxsLlJlYWQgQmFzaWNQcm9qZWN0QWxsLldyaXRlIGFsbHByb2ZpbGVzLnJlYWTIAQE.WJruvtm0fe0vZOngDiK5agUrDobTWQSRC0b7cm0qLH8&ApiVersion=2.0",
-    "driveId": "b!CPeuVHbWjUyD_9doA6Td6m8HS9IQoW9DtDb__nkwj-M92i-qf_-pRKp11I7IA7Pu",
-    "siteId": "54aef708-d676-4c8d-83ff-d76803a4ddea",
-    "status": "N/A",
-    "description": None,
-    "parentReference_id": "01FCBACZKAABKJMBSJT5CJHMDH26OD3W33",
-    "createdBy": "354a020c-cf84-4e30-afd3-07ba0b07c4fc",
-    "lastModifiedBy": "354a020c-cf84-4e30-afd3-07ba0b07c4fc"
-}
-
-FILE_METADATA_DATA = {
-    "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
-    "mimeType": "application/pdf",
-    "quickXorHash": "yXrJBwDlOIJTPw9eEQO6o2UT8NE=",
-    "sharedScope": "users",
-    "createdDateTime": "2024-12-17T10:31:25Z",
-    "lastModifiedDateTime": "2024-12-17T10:31:25Z"
-}
-
-VERSION_DATA = {
-    "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
-    "eTag": "\"{AD57B405-4826-4162-8CA7-B406103C6FCA},1\"",
-    "cTag": "\"c:{AD57B405-4826-4162-8CA7-B406103C6FCA},1\"",
-    "timestamp": "2024-12-17T10:31:25Z",
-    "versionNumber": 1
-}
-
-SESSION_DATA = {
-    "sessionId": "soft-mails-cry",
-    "sessionName": "Engineering Design - Ground Investigation Records",
-    "createdAt": "2024-11-09T15:28:55.609Z",
-    "createdBy": "Tom Goldsmith",
-    "fileCount": 52,
-    "completedAt": None,
-    "status": "draft",
-    "warnings": 0,
-    "rowCount": 0
-}
-
+# JSON data from provided files
 CLASSIFIER_DATA = [
     {
         "id": "ISO1",
@@ -224,7 +156,71 @@ ENRICHER_DATA = [
     }
 ]
 
-# Minimal document data for other boreholes referenced in aiEdits.json and userEdits.json
+USER_DATA = {
+    "id": "354a020c-cf84-4e30-afd3-07ba0b07c4fc",
+    "email": "tom@hoppa.ai",
+    "displayName": "Tom Goldsmith"
+}
+
+FOLDER_DATA = {
+    "id": "01FCBACZKAABKJMBSJT5CJHMDH26OD3W33",
+    "name": "Borehole Records - Petersfield",
+    "path": "/drives/b!CPeuVHbWjUyD_9doA6Td6m8HS9IQoW9DtDb__nkwj-M92i-qf_-pRKp11I7IA7Pu/root:/Main/Sample Documents/Borehole Records - Petersfield",
+    "driveType": "documentLibrary",
+    "driveId": "b!CPeuVHbWjUyD_9doA6Td6m8HS9IQoW9DtDb__nkwj-M92i-qf_-pRKp11I7IA7Pu",
+    "siteId": "54aef708-d676-4c8d-83ff-d76803a4ddea"
+}
+
+DOCUMENT_DATA = {
+    "id": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+    "name": "BGS borehole 426100 (SU72SW51).pdf",
+    "label": "BGS borehole 426100 (SU72SW51).pdf",
+    "size": 3040,
+    "file_name": None,
+    "source": "sharepoint",
+    "type": "application/pdf",
+    "createdDateTime": "2024-12-17T10:31:25Z",
+    "lastModifiedDateTime": "2024-12-17T10:31:25Z",
+    "webUrl": "https://hoppatechnologies.sharepoint.com/sites/SharePointDemoSite/Shared%20Documents/Main/Sample%20Documents/Borehole%20Records%20-%20Petersfield/BGS%20borehole%20426100%20(SU72SW51).pdf",
+    "downloadUrl": "https://hoppatechnologies.sharepoint.com/sites/SharePointDemoSite/_layouts/15/download.aspx?UniqueId=ad57b405-4826-4162-8ca7-b406103c6fca&Translate=false&tempauth=v1.eyJzaXRlaWQiOiI1NGFlZjcwOC1kNjc2LTRjOGQtODNmZi1kNzY4MDNhNGRkZWEiLCJhcHBfZGlzcGxheW5hbWUiOiJIb3BwYSIsImFwcGlkIjoiZmEyY2Y0YzUtZjM5ZC00Zjc1LWEzMjAtMDI5MWFkMmYxMGM1IiwiYXVkIjoiMDAwMDAwMDMtMDAwMC0wZmYxLWNlMDAtMDAwMDAwMDAwMDAwL2hvcHBhdGVjaG5vbG9naWVzLnNoYXJlcG9pbnQuY29tQGJhYWNjMGViLTA5MGYtNGZjOC05ZjczLWQ4YWY0ZGE5NzUwZCIsImV4cCI6IjE3NTA5NTA2NDkifQ.CkAKDGVudHJhX2NsYWltcxIwQ01paTljSUdFQUFhRm5CV05XWkRiVTVwVFZWSFpUTnlOMVEyVjNSbFFVRXFBQT09CjIKCmFjdG9yYXBwaWQSJDAwMDAwMDAzLTAwMDAtMDAwMC1jMDAwLTAwMDAwMDAwMDAwMAoKCgRzbmlkEgI2NBILCOy93JWpsZo-EAUaDTQwLjEyNi40MS4xNjIqLFhFaU9pZHNZU29tRUpBREtnRkhiRldockdBZ0J0c1lNQ3RDTkt6dGhVZVk9MJkBOAFCEKGr7AiWQADQLJpfTCAo47xKEGhhc2hlZHByb29mdG9rZW5SCFsia21zaSJdaiQwMDJlYjkwOS1mOTFmLWY0NGEtNWJjYy1jMDBkYmQ5NjU3YjFyKTBoLmZ8bWVtYmVyc2hpcHwxMDAzMjAwMzcyNzUwM2FkQGxpdmUuY29tegEyggESCevArLoPCchPEZ9z2K9NqXUNkgEDVG9tmgEJR29sZHNtaXRoogEMdG9tQGhvcHBhLmFpqgEQMTAwMzIwMDM3Mjc1MDNBRLIBgQFteWZpbGVzLnJlYWQgYWxsZmlsZXMucmVhZCBhbGxmaWxlcy53cml0ZSBhbGxzaXRlcy5yZWFkIHNlbGVjdGVkc2l0ZXMgQmFzaWNQcm9qZWN0QWxsLlJlYWQgQmFzaWNQcm9qZWN0QWxsLldyaXRlIGFsbHByb2ZpbGVzLnJlYWTIAQE.WJruvtm0fe0vZOngDiK5agUrDobTWQSRC0b7cm0qLH8&ApiVersion=2.0",
+    "driveId": "b!CPeuVHbWjUyD_9doA6Td6m8HS9IQoW9DtDb__nkwj-M92i-qf_-pRKp11I7IA7Pu",
+    "siteId": "54aef708-d676-4c8d-83ff-d76803a4ddea",
+    "status": "N/A",
+    "description": None,
+    "parentReference_id": "01FCBACZKAABKJMBSJT5CJHMDH26OD3W33",
+    "createdBy": "354a020c-cf84-4e30-afd3-07ba0b07c4fc",
+    "lastModifiedBy": "354a020c-cf84-4e30-afd3-07ba0b07c4fc"
+}
+
+FILE_METADATA_DATA = {
+    "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+    "mimeType": "application/pdf",
+    "quickXorHash": "yXrJBwDlOIJTPw9eEQO6o2UT8NE=",
+    "sharedScope": "users",
+    "createdDateTime": "2024-12-17T10:31:25Z",
+    "lastModifiedDateTime": "2024-12-17T10:31:25Z"
+}
+
+VERSION_DATA = {
+    "documentId": "01FCBACZIFWRL22JSIMJAYZJ5UAYIDY36K",
+    "eTag": "\"{AD57B405-4826-4162-8CA7-B406103C6FCA},1\"",
+    "cTag": "\"c:{AD57B405-4826-4162-8CA7-B406103C6FCA},1\"",
+    "timestamp": "2024-12-17T10:31:25Z",
+    "versionNumber": 1
+}
+
+SESSION_DATA = {
+    "sessionId": "soft-mails-cry",
+    "sessionName": "Engineering Design - Ground Investigation Records",
+    "createdAt": "2024-11-09T15:28:55.609Z",
+    "createdBy": "Tom Goldsmith",
+    "fileCount": 52,
+    "completedAt": None,
+    "status": "draft",
+    "warnings": 0,
+    "rowCount": 0
+}
+
 ADDITIONAL_DOCUMENTS = [
     {
         "id": "01FCBACZSU72SW59",
@@ -379,6 +375,9 @@ def make_request(endpoint, data, method="POST"):
         response.raise_for_status()
         logger.info(f"Successfully called {endpoint} with data: {data.get('id', data.get('name', data))}")
         return response.json()
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error calling {endpoint}: {str(e)} - Response: {e.response.text if e.response else 'No response'}")
+        raise
     except requests.exceptions.RequestException as e:
         logger.error(f"Error calling {endpoint}: {str(e)}")
         raise
@@ -386,34 +385,76 @@ def make_request(endpoint, data, method="POST"):
 def ingest_user():
     """Ingest user data."""
     logger.info("Ingesting user data")
-    make_request("users/", USER_DATA)
+    try:
+        make_request("users/", USER_DATA)
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+            logger.warning("User already exists, skipping")
+        else:
+            raise
 
 def ingest_folder():
     """Ingest folder data."""
     logger.info("Ingesting folder data")
-    make_request("folders/", FOLDER_DATA)
+    try:
+        make_request("folders/", FOLDER_DATA)
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+            logger.warning("Folder already exists, skipping")
+        else:
+            raise
 
 def ingest_documents():
     """Ingest document data."""
     logger.info("Ingesting document data")
-    make_request("documents/", DOCUMENT_DATA)
+    try:
+        make_request("documents/", DOCUMENT_DATA)
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+            logger.warning("Document already exists, skipping")
+        else:
+            raise
     for doc in ADDITIONAL_DOCUMENTS:
-        make_request("documents/", doc)
+        try:
+            make_request("documents/", doc)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+                logger.warning(f"Document {doc['id']} already exists, skipping")
+            else:
+                raise
 
 def ingest_file_metadata():
     """Ingest file metadata."""
     logger.info("Ingesting file metadata")
-    make_request("file-metadata/", FILE_METADATA_DATA)
+    try:
+        make_request("file-metadata/", FILE_METADATA_DATA)
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+            logger.warning("File metadata already exists, skipping")
+        else:
+            raise
 
 def ingest_version():
     """Ingest version data."""
     logger.info("Ingesting version data")
-    make_request("versions/", VERSION_DATA)
+    try:
+        make_request("versions/", VERSION_DATA)
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+            logger.warning("Version already exists, skipping")
+        else:
+            raise
 
 def ingest_session():
     """Ingest session data."""
     logger.info("Ingesting session data")
-    make_request("sessions/", SESSION_DATA)
+    try:
+        make_request("sessions/", SESSION_DATA)
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+            logger.warning("Session already exists, skipping")
+        else:
+            raise
 
 def ingest_classifiers():
     """Ingest classifiers and their data."""
@@ -427,32 +468,62 @@ def ingest_classifiers():
             "prompt": classifier["prompt"],
             "description": classifier["description"]
         }
-        make_request("classifiers/", classifier_data)
+        try:
+            make_request("classifiers/", classifier_data)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+                logger.warning(f"Classifier {classifier['id']} already exists, skipping")
+            else:
+                raise
         for data_item in classifier["data"]:
-            make_request("classifier-data/", {
-                "classifierId": classifier["id"],
-                "code": data_item["code"],
-                "description": data_item["description"],
-                "prompt": data_item["prompt"]
-            })
+            try:
+                make_request("classifier-data/", {
+                    "classifierId": classifier["id"],
+                    "code": data_item["code"],
+                    "description": data_item["description"],
+                    "prompt": data_item["prompt"]
+                })
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+                    logger.warning(f"Classifier data {data_item['code']} for classifier {classifier['id']} already exists, skipping")
+                else:
+                    raise
 
 def ingest_enrichers():
     """Ingest enricher data."""
     logger.info("Ingesting enricher data")
     for enricher in ENRICHER_DATA:
-        make_request("enrichers/", enricher)
+        try:
+            make_request("enrichers/", enricher)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+                logger.warning(f"Enricher {enricher['name']} already exists, skipping")
+            else:
+                raise
 
 def ingest_bgs_classifications():
     """Ingest BGS classifications."""
     logger.info("Ingesting BGS classifications")
     for bgs in BGS_CLASSIFICATION_DATA:
-        make_request("bgs/classifications/", bgs)
+        try:
+            make_request("bgs/classifications/", bgs)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+                logger.warning(f"BGS classification for document {bgs['documentId']} already exists, skipping")
+            else:
+                raise
 
 def ingest_user_edits():
     """Ingest user edits."""
     logger.info("Ingesting user edits")
     for edit in USER_EDIT_DATA:
-        make_request("user-edits/", edit)
+        try:
+            make_request("user-edits/", edit)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 400 and "Constraint violation" in e.response.text:
+                logger.warning(f"User edit for document {edit['documentId']} already exists, skipping")
+            else:
+                raise
 
 def verify_ingestion():
     """Verify ingested data by calling export endpoints."""
@@ -466,8 +537,12 @@ def verify_ingestion():
         "export/session-standard"
     ]
     for endpoint in endpoints:
-        response = make_request(endpoint, {}, method="GET")
-        logger.info(f"Data from {endpoint}: {json.dumps(response, indent=2)}")
+        try:
+            response = make_request(endpoint, {}, method="GET")
+            logger.info(f"Data from {endpoint}: {json.dumps(response, indent=2)}")
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"Error verifying {endpoint}: {str(e)} - Response: {e.response.text if e.response else 'No response'}")
+            raise
 
 def main():
     """Main function to ingest all data in the correct order."""
