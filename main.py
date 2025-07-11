@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException
 from neo4j import AsyncGraphDatabase
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from dotenv import load_dotenv
 import os
 import logging
+import asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -61,6 +62,32 @@ class FolderCreate(BaseModel):
     driveId: str
     siteId: str
 
+class ParentReference(BaseModel):
+    id: str
+    name: str
+    path: str
+    driveType: str
+    driveId: str
+    siteId: str
+
+
+class FileMetadataCreate(BaseModel):
+    documentId: str
+    mimeType: str
+    quickXorHash: str
+    sharedScope: str
+    createdDateTime: str
+    lastModifiedDateTime: str
+
+
+class VersionCreate(BaseModel):
+    documentId: str
+    eTag: str
+    cTag: str
+    timestamp: str
+    versionNumber: int
+
+
 class DocumentCreate(BaseModel):
     id: str
     name: str
@@ -77,46 +104,54 @@ class DocumentCreate(BaseModel):
     siteId: str
     status: str
     description: Optional[str]
-    parentReference_id: str
+    parentReference: Optional[ParentReference] = Field(None, description="Reference to the parent folder")
     createdBy: str
     lastModifiedBy: str
+    file: Optional[FileMetadataCreate] = Field(None, description="File metadata associated with the document")
+    version: str
 
-class Document(BaseModel):
+class UserInfo(BaseModel):
+    displayName: str
     id: str
-    name: str
-    label: str
-    size: int
-    file_name: Optional[str]
-    source: str
-    type: str
-    createdDateTime: str
-    lastModifiedDateTime: str
-    webUrl: str
-    downloadUrl: str
-    driveId: str
-    siteId: str
-    status: str
-    description: Optional[str]
-    parentReference_id: Optional[str]
-    createdBy: Optional[str]
-    lastModifiedBy: Optional[str]
-
-class FileMetadataCreate(BaseModel):
-    documentId: str
+    email: str
+    
+class File(BaseModel):
     mimeType: str
-    quickXorHash: str
-    sharedScope: str
+    hashes: Optional[dict] = Field(None, description="File hashes including quickXorHash")
+
+class FileSystemInfo(BaseModel):
     createdDateTime: str
     lastModifiedDateTime: str
 
-class VersionCreate(BaseModel):
-    documentId: str
-    eTag: str
-    cTag: str
-    timestamp: str
-    versionNumber: int
+class Shared(BaseModel):
+    scope: str
+class Document(BaseModel):
+    name: str
+    source: str
+    file_name: Optional[str]
+    lastModifiedDate: str
+    size: int
+    id: str
+    site_id: str
+    drive_id: str
+    label: str
+    type: str
+    microsoft_graph_downloadUrl: str = Field(alias="@microsoft.graph.downloadUrl")
+    createdBy: Optional[UserInfo] = Field(None, description="Information about the user who created the item")
+    createdDateTime: str
+    eTag: Optional[str]
+    lastModifiedBy: Optional[UserInfo] = Field(None, description="Information about the user who last modified the item")
+    lastModifiedDateTime: str
+    parentReference: Optional[ParentReference] = Field(None, description="Reference to the parent folder")
+    webUrl: str
+    cTag: Optional[str]
+    file: Optional[File]
+    fileSystemInfo: Optional[FileSystemInfo]
+    shared: Optional[Shared]
+    status: str
 
-class SessionCreate(BaseModel):
+
+class SessionCreate(BaseModel): 
     sessionId: str
     sessionName: str
     createdAt: str
@@ -392,6 +427,9 @@ async def create_user_edit(edit: UserEditCreate, db: Neo4jConnection = Depends(g
         RETURN e
         """
         result = await db.query(query, edit.dict())
+        if not result:
+            logger.error(f"User edit creation failed for document {edit.documentId}: No result returned")
+            raise HTTPException(status_code=400, detail="User edit creation failed: No result")
         logger.info(f"Created user edit for document: {edit.documentId}")
         return edit
     except Exception as e:
@@ -406,7 +444,9 @@ async def export_document(document_id: str, db: Neo4jConnection = Depends(get_db
         OPTIONAL MATCH (d)-[:CREATED_BY]->(u:User)
         OPTIONAL MATCH (d)-[:LAST_MODIFIED_BY]->(lm:User)
         OPTIONAL MATCH (d)-[:STORED_IN]->(f:Folder)
-        RETURN d, u, lm, f
+        OPTIONAL MATCH (d)-[:HAS_METADATA]->(m:FileMetadata)
+        OPTIONAL MATCH (d)-[:HAS_VERSION]->(v:Version)
+        RETURN d, u, lm, f, m, v
         """
         result = await db.query(query, {"document_id": document_id})
         if not result:
@@ -418,26 +458,45 @@ async def export_document(document_id: str, db: Neo4jConnection = Depends(get_db
         user = record["u"]
         last_modified_user = record["lm"]
         folder = record["f"]
-        
+        metadata = record["m"]
+        version = record["v"]
+        cTag = version["cTag"] if version else None
+        eTag = version["eTag"] if version else None
+        file = {"hashes": {"quickXorHash":metadata["quickXorHash"]}, "mimeType": metadata["mimeType"]} if metadata else None
+        fileSystemInfo = {
+            "createdDateTime": metadata["createdDateTime"],
+            "lastModifiedDateTime": metadata["lastModifiedDateTime"]
+        } if metadata else None
+        shared = {"scope": metadata["sharedScope"]} if metadata else None
+
+        print(f"file: {file}   fileSystemInfo: {fileSystemInfo} shared: {shared}")
+        print(f"User data: {user}")
+        print(f"Version data: {version}")
+
         document_data = {
-            "id": document["id"],
             "name": document["name"],
-            "label": document["label"],
-            "size": document.get("size", 0),
-            "file_name": document.get("file_name"),
             "source": document.get("source"),
+            "file_name": document.get("file_name"),
+            "lastModifiedDate": "null",
+            "size": document.get("size", 0),
+            "id": document["id"],
+            "site_id": document.get("siteId"),
+            "drive_id": document.get("driveId"),
+            "label": document["label"],
             "type": document.get("type"),
+            "@microsoft.graph.downloadUrl": document.get("downloadUrl"),
+            "createdBy": user if user else None,
             "createdDateTime": document.get("createdDateTime"),
+            "lastModifiedBy": last_modified_user if last_modified_user else None,
             "lastModifiedDateTime": document.get("lastModifiedDateTime"),
             "webUrl": document.get("webUrl"),
-            "downloadUrl": document.get("downloadUrl"),
-            "driveId": document.get("driveId"),
-            "siteId": document.get("siteId"),
             "status": document.get("status"),
-            "description": document.get("description"),
-            "parentReference_id": folder["id"] if folder else None,
-            "createdBy": user["id"] if user else None,
-            "lastModifiedBy": last_modified_user["id"] if last_modified_user else None
+            "parentReference": folder,
+            "cTag": cTag,
+            "eTag": eTag,
+            "file": file,
+            "fileSystemInfo": fileSystemInfo,
+            "shared": shared
         }
         logger.info(f"Exported document: {document_id}")
         return document_data
@@ -515,22 +574,61 @@ async def export_session_standard(db: Neo4jConnection = Depends(get_db)):
         classifiers_result = await db.query(classifiers_query)
         enrichers_result = await db.query(enrichers_query)
         
+        logger.debug(f"Raw classifiers query result: {classifiers_result}")
+        logger.debug(f"Raw enrichers query result: {enrichers_result}")
+        
         classifiers = []
         for record in classifiers_result:
             classifier = record["c"]
-            classifier_data = [
-                ClassifierDataCreate(classifierId=classifier["id"], code=d["code"], description=d["description"], prompt=d["prompt"])
-                for d in record["data"]
-            ]
-            classifiers.append(ClassifierCreate(
-                id=classifier["id"], name=classifier["name"], isHierarchy=classifier["isHierarchy"],
-                parentId=classifier["parentId"], prompt=classifier["prompt"], description=classifier["description"]
-            ))
+            logger.debug(f"Processing classifier: {classifier}")
+            
+            classifier_data = []
+            for d in record["data"] or []:
+                try:
+                    classifier_data.append(ClassifierDataCreate(
+                        classifierId=classifier["id"],
+                        code=d["code"],
+                        description=d["description"],
+                        prompt=d.get("prompt")
+                    ))
+                except Exception as ve:
+                    logger.error(f"Pydantic validation error for ClassifierData {d.get('code')} of classifier {classifier['id']}: {str(ve)}")
+                    raise HTTPException(status_code=400, detail=f"Pydantic validation error for ClassifierData {d.get('code')}: {str(ve)}")
+            
+            try:
+                classifier_entry = ClassifierCreate(
+                    id=classifier["id"],
+                    name=classifier["name"],
+                    isHierarchy=classifier["isHierarchy"],
+                    parentId=classifier.get("parentId"),
+                    prompt=classifier["prompt"],
+                    description=classifier["description"]
+                )
+                classifiers.append(classifier_entry)
+            except Exception as ve:
+                logger.error(f"Pydantic validation error for classifier {classifier['id']}: {str(ve)}")
+                raise HTTPException(status_code=400, detail=f"Pydantic validation error for classifier {classifier['id']}: {str(ve)}")
         
-        enrichers = [EnricherCreate(**e["e"]) for e in enrichers_result]
+        enrichers = []
+        for record in enrichers_result:
+            enricher = record["e"]
+            logger.debug(f"Processing enricher: {enricher}")
+            try:
+                enricher_entry = EnricherCreate(
+                    name=enricher["name"],
+                    searchTerm=enricher["searchTerm"],
+                    body=enricher["body"],
+                    active=enricher["active"],
+                    value=enricher.get("value")
+                )
+                enrichers.append(enricher_entry)
+            except Exception as ve:
+                logger.error(f"Pydantic validation error for enricher {enricher['name']}: {str(ve)}")
+                raise HTTPException(status_code=400, detail=f"Pydantic validation error for enricher {enricher['name']}: {str(ve)}")
         
+        result = SessionStandardExport(classifiers=classifiers, enrichers=enrichers)
         logger.info("Exported session-standard data")
-        return SessionStandardExport(classifiers=classifiers, enrichers=enrichers)
+        return result
     except Exception as e:
         logger.error(f"Error exporting session-standard: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error exporting session-standard: {str(e)}")
@@ -543,8 +641,33 @@ async def export_user_edits(db: Neo4jConnection = Depends(get_db)):
         RETURN e
         """
         result = await db.query(query)
+        logger.debug(f"Raw user edits data: {result}")
+        
+        if not result:
+            logger.info("No user edits found, returning empty list")
+            return []
+        
+        user_edits = []
+        for record in result:
+            edit = record["e"]
+            edit_data = {
+                "documentId": edit["documentId"],
+                "field": edit["field"],
+                "originalValue": edit["originalValue"],
+                "editedValue": edit["editedValue"],
+                "editedBy": edit["editedBy"],
+                "editedAt": edit["editedAt"],
+                "reason": edit.get("reason")
+            }
+            try:
+                validated_edit = UserEditCreate(**edit_data)
+                user_edits.append(validated_edit)
+            except Exception as ve:
+                logger.error(f"Pydantic validation error for user edit {edit['documentId']}: {str(ve)}")
+                raise HTTPException(status_code=400, detail=f"Pydantic validation error for user edit {edit['documentId']}: {str(ve)}")
+        
         logger.info("Exported user edits")
-        return [UserEditCreate(**record["e"]) for record in result]
+        return user_edits
     except Exception as e:
         logger.error(f"Error exporting user edits: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error exporting user edits: {str(e)}")

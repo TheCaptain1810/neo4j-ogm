@@ -1,6 +1,7 @@
 import requests
 import json
 import logging
+from neo4j import GraphDatabase
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -8,6 +9,11 @@ logger = logging.getLogger(__name__)
 
 # FastAPI server URL
 BASE_URL = "http://localhost:6969"
+
+# Neo4j connection settings
+NEO4J_URI = "neo4j://localhost:7687"
+NEO4J_USERNAME = "neo4j"
+NEO4J_PASSWORD = "password"
 
 # JSON data from provided files
 CLASSIFIER_DATA = [
@@ -382,6 +388,47 @@ def make_request(endpoint, data, method="POST"):
         logger.error(f"Error calling {endpoint}: {str(e)}")
         raise
 
+def verify_nodes():
+    """Verify the existence of critical nodes in Neo4j."""
+    try:
+        driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
+        with driver.session() as session:
+            # Verify User
+            result = session.run("MATCH (u:User {id: $id}) RETURN u", id=USER_DATA["id"])
+            user_count = len([record for record in result])
+            logger.info(f"Found {user_count} User nodes with id {USER_DATA['id']}")
+            
+            # Verify Folder
+            result = session.run("MATCH (f:Folder {id: $id}) RETURN f", id=FOLDER_DATA["id"])
+            folder_count = len([record for record in result])
+            logger.info(f"Found {folder_count} Folder nodes with id {FOLDER_DATA['id']}")
+            
+            # Verify Documents
+            doc_ids = [DOCUMENT_DATA["id"]] + [doc["id"] for doc in ADDITIONAL_DOCUMENTS]
+            result = session.run("MATCH (d:Document) WHERE d.id IN $ids RETURN d.id", ids=doc_ids)
+            doc_count = len([record for record in result])
+            logger.info(f"Found {doc_count} Document nodes out of {len(doc_ids)} expected")
+            
+            # Verify Session
+            result = session.run("MATCH (s:Session {sessionId: $sessionId}) RETURN s", sessionId=SESSION_DATA["sessionId"])
+            session_count = len([record for record in result])
+            logger.info(f"Found {session_count} Session nodes with sessionId {SESSION_DATA['sessionId']}")
+            
+            # Verify User Edits
+            result = session.run("MATCH (e:UserEdit) RETURN e")
+            edit_count = len([record for record in result])
+            logger.info(f"Found {edit_count} UserEdit nodes out of {len(USER_EDIT_DATA)} expected")
+            
+            # Verify relationships
+            result = session.run("MATCH (d:Document)-[:HAS_USER_EDIT]->(e:UserEdit) RETURN d.id, e.documentId")
+            rel_count = len([record for record in result])
+            logger.info(f"Found {rel_count} HAS_USER_EDIT relationships")
+            
+        driver.close()
+    except Exception as e:
+        logger.error(f"Error verifying nodes: {str(e)}")
+        raise
+
 def ingest_user():
     """Ingest user data."""
     logger.info("Ingesting user data")
@@ -535,6 +582,7 @@ def ingest_user_edits():
             if e.response.status_code == 400 and "Constraint violation" in e.response.text:
                 logger.warning(f"User edit for document {edit['documentId']} already exists, skipping")
             else:
+                logger.error(f"Failed to ingest user edit for document {edit['documentId']}: {str(e)}")
                 raise
 
 def verify_ingestion():
@@ -569,8 +617,9 @@ def main():
         ingest_enrichers()
         ingest_bgs_classifications()
         ingest_user_edits()
+        verify_nodes()
         verify_ingestion()
-        logger.info("Data ingestion completed successfully")
+        logger.info("Data ingestion and verification completed successfully")
     except Exception as e:
         logger.error(f"Ingestion failed: {str(e)}")
         raise
