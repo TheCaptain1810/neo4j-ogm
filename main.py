@@ -5,7 +5,7 @@ from typing import Optional, List
 from dotenv import load_dotenv
 import os
 import logging
-import asyncio
+from data.data import insert_query, parameters
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -185,7 +185,7 @@ class EnricherCreate(BaseModel):
 
 class BGSClassificationCreate(BaseModel):
     documentId: str
-    code: str
+    code: str 
     explanation: str
     tooltip: str
     appliedAt: str
@@ -246,446 +246,180 @@ async def startup_event():
 async def root():
     return {"message": "Hello, World!"}
 
-@app.post("/users/", response_model=UserCreate)
-async def create_user(user: UserCreate, db: Neo4jConnection = Depends(get_db)):
+@app.post("/data")
+async def insert_data(db: Neo4jConnection = Depends(get_db)):
+    """Insert all data with complete schema similar to PostgreSQL version"""
     try:
-        query = """
-        CREATE (u:User {id: $id, email: $email, displayName: $displayName})
-        RETURN u
-        """
-        result = await db.query(query, user.dict())
-        logger.info(f"Created user: {user.id}")
-        return user
+        logger.info("Starting complete data insertion")
+        
+        # Execute the query
+        result = await db.query(insert_query, parameters)
+        
+        if result and result[0].get("result") == "SUCCESS":
+            logger.info("data insertion completed successfully")
+            return {"success": True, "message": "data inserted successfully"}
+        else:
+            logger.error("data insertion failed: No success result returned")
+            raise HTTPException(status_code=400, detail="data insertion failed")
+            
     except Exception as e:
-        logger.error(f"Error creating user {user.id}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating user: {str(e)}")
+        logger.error(f"Error inserting data: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error inserting data: {str(e)}")
 
-@app.post("/folders/", response_model=FolderCreate)
-async def create_folder(folder: FolderCreate, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        CREATE (f:Folder {id: $id, name: $name, path: $path, driveType: $driveType, driveId: $driveId, siteId: $siteId})
-        RETURN f
-        """
-        result = await db.query(query, folder.dict())
-        logger.info(f"Created folder: {folder.id}")
-        return folder
-    except Exception as e:
-        logger.error(f"Error creating folder {folder.id}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating folder: {str(e)}")
-
-@app.post("/documents/", response_model=DocumentCreate)
-async def create_document(document: DocumentCreate, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        MATCH (u:User {id: $createdBy}), (lm:User {id: $lastModifiedBy}), (f:Folder {id: $parentReference_id})
-        CREATE (d:Document {id: $id, name: $name, label: $label, size: $size, file_name: $file_name,
-                           source: $source, type: $type, createdDateTime: $createdDateTime,
-                           lastModifiedDateTime: $lastModifiedDateTime, webUrl: $webUrl,
-                           downloadUrl: $downloadUrl, driveId: $driveId, siteId: $siteId,
-                           status: $status, description: $description})
-        CREATE (d)-[:CREATED_BY]->(u)
-        CREATE (d)-[:LAST_MODIFIED_BY]->(lm)
-        CREATE (d)-[:STORED_IN]->(f)
-        RETURN d
-        """
-        result = await db.query(query, document.dict())
-        if not result:
-            logger.error(f"Document creation failed for {document.id}: No result returned")
-            raise HTTPException(status_code=400, detail="Document creation failed: No result")
-        logger.info(f"Created document: {document.id}")
-        return document
-    except Exception as e:
-        logger.error(f"Error creating document {document.id}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating document: {str(e)}")
-
-@app.post("/file-metadata/", response_model=FileMetadataCreate)
-async def create_file_metadata(metadata: FileMetadataCreate, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        MATCH (d:Document {id: $documentId})
-        CREATE (m:FileMetadata {documentId: $documentId, mimeType: $mimeType, quickXorHash: $quickXorHash,
-                                sharedScope: $sharedScope, createdDateTime: $createdDateTime,
-                                lastModifiedDateTime: $lastModifiedDateTime})
-        CREATE (d)-[:HAS_METADATA]->(m)
-        RETURN m
-        """
-        result = await db.query(query, metadata.dict())
-        logger.info(f"Created file metadata for document: {metadata.documentId}")
-        return metadata
-    except Exception as e:
-        logger.error(f"Error creating file metadata for {metadata.documentId}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating file metadata: {str(e)}")
-
-@app.post("/versions/", response_model=VersionCreate)
-async def create_version(version: VersionCreate, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        MATCH (d:Document {id: $documentId})
-        CREATE (v:Version {documentId: $documentId, eTag: $eTag, cTag: $cTag,
-                          timestamp: $timestamp, versionNumber: $versionNumber})
-        CREATE (d)-[:HAS_VERSION]->(v)
-        RETURN v
-        """
-        result = await db.query(query, version.dict())
-        logger.info(f"Created version for document: {version.documentId}")
-        return version
-    except Exception as e:
-        logger.error(f"Error creating version for {version.documentId}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating version: {str(e)}")
-
-@app.post("/sessions/", response_model=SessionCreate)
-async def create_session(session: SessionCreate, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        CREATE (s:Session {sessionId: $sessionId, sessionName: $sessionName, createdAt: $createdAt,
-                          createdBy: $createdBy, fileCount: $fileCount, completedAt: $completedAt,
-                          status: $status, warnings: $warnings, rowCount: $rowCount})
-        RETURN s
-        """
-        result = await db.query(query, session.dict())
-        if not result:
-            logger.error(f"Session creation failed for {session.sessionId}: No result returned")
-            raise HTTPException(status_code=400, detail="Session creation failed: No result")
-        logger.info(f"Created session: {session.sessionId}")
-        return session
-    except Exception as e:
-        logger.error(f"Error creating session {session.sessionId}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating session: {str(e)}")
-
-@app.post("/classifiers/", response_model=ClassifierCreate)
-async def create_classifier(classifier: ClassifierCreate, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        CREATE (c:Classifier {id: $id, name: $name, isHierarchy: $isHierarchy, parentId: $parentId,
-                             prompt: $prompt, description: $description})
-        RETURN c
-        """
-        result = await db.query(query, classifier.dict())
-        logger.info(f"Created classifier: {classifier.id}")
-        return classifier
-    except Exception as e:
-        logger.error(f"Error creating classifier {classifier.id}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating classifier: {str(e)}")
-
-@app.post("/classifier-data/", response_model=ClassifierDataCreate)
-async def create_classifier_data(data: ClassifierDataCreate, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        MATCH (c:Classifier {id: $classifierId})
-        CREATE (d:ClassifierData {classifierId: $classifierId, code: $code, description: $description, prompt: $prompt})
-        CREATE (c)-[:HAS_DATA]->(d)
-        RETURN d
-        """
-        result = await db.query(query, data.dict())
-        logger.info(f"Created classifier data {data.code} for classifier: {data.classifierId}")
-        return data
-    except Exception as e:
-        logger.error(f"Error creating classifier data {data.code} for {data.classifierId}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating classifier data: {str(e)}")
-
-@app.post("/enrichers/", response_model=EnricherCreate)
-async def create_enricher(enricher: EnricherCreate, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        CREATE (e:Enricher {name: $name, searchTerm: $searchTerm, body: $body, active: $active, value: $value})
-        RETURN e
-        """
-        result = await db.query(query, enricher.dict())
-        logger.info(f"Created enricher: {enricher.name}")
-        return enricher
-    except Exception as e:
-        logger.error(f"Error creating enricher {enricher.name}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating enricher: {str(e)}")
-
-@app.post("/bgs/classifications/", response_model=BGSClassificationCreate)
-async def create_bgs_classification(bgs: BGSClassificationCreate, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        MATCH (d:Document {id: $documentId})
-        CREATE (b:BGSClassification {documentId: $documentId, code: $code, explanation: $explanation,
-                                    tooltip: $tooltip, appliedAt: $appliedAt})
-        CREATE (d)-[:HAS_BGS_CLASSIFICATION]->(b)
-        RETURN b
-        """
-        result = await db.query(query, bgs.dict())
-        logger.info(f"Created BGS classification for document: {bgs.documentId}")
-        return bgs
-    except Exception as e:
-        logger.error(f"Error creating BGS classification for {bgs.documentId}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating BGS classification: {str(e)}")
-
-@app.post("/user-edits/", response_model=UserEditCreate)
-async def create_user_edit(edit: UserEditCreate, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        MATCH (d:Document {id: $documentId}), (u:User {id: $editedBy})
-        CREATE (e:UserEdit {documentId: $documentId, field: $field, originalValue: $originalValue,
-                            editedValue: $editedValue, editedBy: $editedBy, editedAt: $editedAt, reason: $reason})
-        CREATE (d)-[:HAS_USER_EDIT]->(e)
-        CREATE (e)-[:EDITED_BY]->(u)
-        RETURN e
-        """
-        result = await db.query(query, edit.dict())
-        if not result:
-            logger.error(f"User edit creation failed for document {edit.documentId}: No result returned")
-            raise HTTPException(status_code=400, detail="User edit creation failed: No result")
-        logger.info(f"Created user edit for document: {edit.documentId}")
-        return edit
-    except Exception as e:
-        logger.error(f"Error creating user edit for {edit.documentId}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error creating user edit: {str(e)}")
-
-@app.get("/export/document/{document_id}", response_model=Document)
+@app.get("/export/document/{document_id}")
 async def export_document(document_id: str, db: Neo4jConnection = Depends(get_db)):
+    """Export document with complete data structure like PostgreSQL version"""
     try:
-        query = """
+        logger.info(f"Exporting document: {document_id}")
+        
+        # Comprehensive query to get all document data
+        export_query = """
         MATCH (d:Document {id: $document_id})
-        OPTIONAL MATCH (d)-[:CREATED_BY]->(u:User)
-        OPTIONAL MATCH (d)-[:LAST_MODIFIED_BY]->(lm:User)
+        OPTIONAL MATCH (d)-[:CREATED_BY]->(createdBy:User)
+        OPTIONAL MATCH (d)-[:LAST_MODIFIED_BY]->(lastModifiedBy:User)
         OPTIONAL MATCH (d)-[:STORED_IN]->(f:Folder)
-        OPTIONAL MATCH (d)-[:HAS_METADATA]->(m:FileMetadata)
+        OPTIONAL MATCH (d)-[:HAS_METADATA]->(fm:FileMetadata)
         OPTIONAL MATCH (d)-[:HAS_VERSION]->(v:Version)
-        RETURN d, u, lm, f, m, v
+        RETURN 
+            d.name as name,
+            d.source as source,
+            d.file_name as file_name,
+            d.lastModifiedDateTime as lastModifiedDate,
+            d.size as size,
+            d.id as id,
+            d.siteId as site_id,
+            d.driveId as drive_id,
+            d.label as label,
+            d.type as type,
+            d.downloadUrl as download_url,
+            d.createdDateTime as created_date_time,
+            d.lastModifiedDateTime as last_modified_date_time,
+            d.webUrl as web_url,
+            d.status as status,
+            createdBy.id as createdBy_id,
+            createdBy.email as createdBy_email,
+            createdBy.displayName as createdBy_displayName,
+            lastModifiedBy.id as lastModifiedBy_id,
+            lastModifiedBy.email as lastModifiedBy_email,
+            lastModifiedBy.displayName as lastModifiedBy_displayName,
+            f.id as parentReference_id,
+            f.name as parentReference_name,
+            f.path as parentReference_path,
+            f.driveType as parentReference_driveType,
+            f.driveId as parentReference_driveId,
+            f.siteId as parentReference_siteId,
+            fm.mimeType as file_mimeType,
+            fm.quickXorHash as file_hashes_quickXorHash,
+            fm.createdDateTime as fileSystemInfo_createdDateTime,
+            fm.lastModifiedDateTime as fileSystemInfo_lastModifiedDateTime,
+            fm.sharedScope as shared_scope,
+            v.eTag as eTag,
+            v.cTag as cTag
         """
-        result = await db.query(query, {"document_id": document_id})
+        
+        result = await db.query(export_query, {"document_id": document_id})
+        
         if not result:
             logger.warning(f"Document not found: {document_id}")
             raise HTTPException(status_code=404, detail=f"Document not found: {document_id}")
         
-        record = result[0]
-        document = record["d"]
-        user = record["u"]
-        last_modified_user = record["lm"]
-        folder = record["f"]
-        metadata = record["m"]
-        version = record["v"]
-        cTag = version["cTag"] if version else None
-        eTag = version["eTag"] if version else None
-        file = {"hashes": {"quickXorHash":metadata["quickXorHash"]}, "mimeType": metadata["mimeType"]} if metadata else None
-        fileSystemInfo = {
-            "createdDateTime": metadata["createdDateTime"],
-            "lastModifiedDateTime": metadata["lastModifiedDateTime"]
-        } if metadata else None
-        shared = {"scope": metadata["sharedScope"]} if metadata else None
-
-        print(f"file: {file}   fileSystemInfo: {fileSystemInfo} shared: {shared}")
-        print(f"User data: {user}")
-        print(f"Version data: {version}")
-
-        document_data = {
+        document = result[0]
+        
+        # Convert Neo4j datetime objects if needed
+        document = convert_neo4j_datetime(document)
+        
+        # Build response structure matching PostgreSQL format
+        response = {
             "name": document["name"],
-            "source": document.get("source"),
-            "file_name": document.get("file_name"),
-            "lastModifiedDate": "null",
-            "size": document.get("size", 0),
+            "source": document["source"],
+            "file_name": document["file_name"],
+            "lastModifiedDate": document["lastModifiedDate"],
+            "size": document["size"],
             "id": document["id"],
-            "site_id": document.get("siteId"),
-            "drive_id": document.get("driveId"),
+            "site_id": document["site_id"],
+            "drive_id": document["drive_id"],
             "label": document["label"],
-            "type": document.get("type"),
-            "@microsoft.graph.downloadUrl": document.get("downloadUrl"),
-            "createdBy": user if user else None,
-            "createdDateTime": document.get("createdDateTime"),
-            "lastModifiedBy": last_modified_user if last_modified_user else None,
-            "lastModifiedDateTime": document.get("lastModifiedDateTime"),
-            "webUrl": document.get("webUrl"),
-            "status": document.get("status"),
-            "parentReference": folder,
-            "cTag": cTag,
-            "eTag": eTag,
-            "file": file,
-            "fileSystemInfo": fileSystemInfo,
-            "shared": shared
+            "type": document["type"],
+            "@microsoft.graph.downloadUrl": document["download_url"],
+            "createdBy": {
+                "id": document["createdBy_id"],
+                "email": document["createdBy_email"],
+                "displayName": document["createdBy_displayName"]
+            } if document["createdBy_id"] else None,
+            "createdDateTime": document["created_date_time"],
+            "lastModifiedBy": {
+                "id": document["lastModifiedBy_id"],
+                "email": document["lastModifiedBy_email"],
+                "displayName": document["lastModifiedBy_displayName"]
+            } if document["lastModifiedBy_id"] else None,
+            "lastModifiedDateTime": document["last_modified_date_time"],
+            "parentReference": {
+                "id": document["parentReference_id"],
+                "name": document["parentReference_name"],
+                "path": document["parentReference_path"],
+                "driveType": document["parentReference_driveType"],
+                "driveId": document["parentReference_driveId"],
+                "siteId": document["parentReference_siteId"]
+            } if document["parentReference_id"] else None,
+            "webUrl": document["web_url"],
+            "cTag": document["cTag"],
+            "eTag": document["eTag"],
+            "file": {
+                "hashes": {"quickXorHash": document["file_hashes_quickXorHash"]},
+                "mimeType": document["file_mimeType"]
+            } if document["file_mimeType"] else None,
+            "fileSystemInfo": {
+                "createdDateTime": document["fileSystemInfo_createdDateTime"],
+                "lastModifiedDateTime": document["fileSystemInfo_lastModifiedDateTime"]
+            } if document["fileSystemInfo_createdDateTime"] else None,
+            "shared": {
+                "scope": document["shared_scope"]
+            } if document["shared_scope"] else None,
+            "status": document["status"]
         }
-        logger.info(f"Exported document: {document_id}")
-        return document_data
+        
+        logger.info(f"Successfully exported document: {document_id}")
+        return response
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
         logger.error(f"Error exporting document {document_id}: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error exporting document: {str(e)}")
 
-@app.get("/export/ai-edits", response_model=List[AIEditExport])
-async def export_ai_edits(db: Neo4jConnection = Depends(get_db)):
+@app.delete("/data/")
+async def delete_all_data(db: Neo4jConnection = Depends(get_db)):
+    """Delete all data from the Neo4j database"""
     try:
-        query = """
-        MATCH (d:Document)-[:HAS_AI_EDIT]->(e:AIEdit)
-        RETURN d.id AS documentId, e.field AS field, e.originalValue AS originalValue,
-               e.editedValue AS editedValue, e.editedAt AS editedAt
+        logger.info("Starting data deletion")
+        
+        # Delete all nodes and relationships
+        delete_query = """
+        MATCH (n)
+        DETACH DELETE n
         """
-        result = await db.query(query)
-        logger.info("Exported AI edits")
-        return [AIEditExport(**record) for record in result]
+        
+        await db.query(delete_query)
+        
+        logger.info("All data deleted successfully")
+        return {"success": True, "message": "All data deleted successfully"}
+        
     except Exception as e:
-        logger.error(f"Error exporting AI edits: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error exporting AI edits: {str(e)}")
+        logger.error(f"Error deleting data: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error deleting data: {str(e)}")
 
-@app.get("/export/session/{session_id}", response_model=SessionCreate)
-async def export_session(session_id: str, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        MATCH (s:Session {sessionId: $session_id})
-        RETURN s
-        """
-        result = await db.query(query, {"session_id": session_id})
-        if not result:
-            logger.warning(f"Session not found: {session_id}")
-            raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
-        
-        session = result[0]["s"]
-        logger.debug(f"Raw session data: {session}")
-        
-        # Ensure data matches original JSON structure
-        session_data = {
-            "sessionId": session["sessionId"],
-            "sessionName": session["sessionName"],
-            "createdAt": session["createdAt"],
-            "createdBy": session["createdBy"],
-            "fileCount": session["fileCount"],
-            "completedAt": session.get("completedAt"),
-            "status": session["status"],
-            "warnings": session["warnings"],
-            "rowCount": session["rowCount"]
-        }
-        
-        # Validate against SessionCreate model
-        try:
-            validated_session = SessionCreate(**session_data)
-            logger.info(f"Exported session: {session_id}")
-            return validated_session
-        except Exception as ve:
-            logger.error(f"Pydantic validation error for session {session_id}: {str(ve)}")
-            raise HTTPException(status_code=400, detail=f"Pydantic validation error: {str(ve)}")
-    except Exception as e:
-        logger.error(f"Error exporting session {session_id}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error exporting session: {str(e)}")
-
-@app.get("/export/session-standard", response_model=SessionStandardExport)
-async def export_session_standard(db: Neo4jConnection = Depends(get_db)):
-    try:
-        classifiers_query = """
-        MATCH (c:Classifier)
-        OPTIONAL MATCH (c)-[:HAS_DATA]->(d:ClassifierData)
-        RETURN c, collect(d) AS data
-        """
-        enrichers_query = """
-        MATCH (e:Enricher)
-        RETURN e
-        """
-        classifiers_result = await db.query(classifiers_query)
-        enrichers_result = await db.query(enrichers_query)
-        
-        logger.debug(f"Raw classifiers query result: {classifiers_result}")
-        logger.debug(f"Raw enrichers query result: {enrichers_result}")
-        
-        classifiers = []
-        for record in classifiers_result:
-            classifier = record["c"]
-            logger.debug(f"Processing classifier: {classifier}")
-            
-            classifier_data = []
-            for d in record["data"] or []:
-                try:
-                    classifier_data.append(ClassifierDataCreate(
-                        classifierId=classifier["id"],
-                        code=d["code"],
-                        description=d["description"],
-                        prompt=d.get("prompt")
-                    ))
-                except Exception as ve:
-                    logger.error(f"Pydantic validation error for ClassifierData {d.get('code')} of classifier {classifier['id']}: {str(ve)}")
-                    raise HTTPException(status_code=400, detail=f"Pydantic validation error for ClassifierData {d.get('code')}: {str(ve)}")
-            
-            try:
-                classifier_entry = ClassifierCreate(
-                    id=classifier["id"],
-                    name=classifier["name"],
-                    isHierarchy=classifier["isHierarchy"],
-                    parentId=classifier.get("parentId"),
-                    prompt=classifier["prompt"],
-                    description=classifier["description"]
-                )
-                classifiers.append(classifier_entry)
-            except Exception as ve:
-                logger.error(f"Pydantic validation error for classifier {classifier['id']}: {str(ve)}")
-                raise HTTPException(status_code=400, detail=f"Pydantic validation error for classifier {classifier['id']}: {str(ve)}")
-        
-        enrichers = []
-        for record in enrichers_result:
-            enricher = record["e"]
-            logger.debug(f"Processing enricher: {enricher}")
-            try:
-                enricher_entry = EnricherCreate(
-                    name=enricher["name"],
-                    searchTerm=enricher["searchTerm"],
-                    body=enricher["body"],
-                    active=enricher["active"],
-                    value=enricher.get("value")
-                )
-                enrichers.append(enricher_entry)
-            except Exception as ve:
-                logger.error(f"Pydantic validation error for enricher {enricher['name']}: {str(ve)}")
-                raise HTTPException(status_code=400, detail=f"Pydantic validation error for enricher {enricher['name']}: {str(ve)}")
-        
-        result = SessionStandardExport(classifiers=classifiers, enrichers=enrichers)
-        logger.info("Exported session-standard data")
-        return result
-    except Exception as e:
-        logger.error(f"Error exporting session-standard: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error exporting session-standard: {str(e)}")
-
-@app.get("/export/user-edits", response_model=List[UserEditCreate])
-async def export_user_edits(db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        MATCH (d:Document)-[:HAS_USER_EDIT]->(e:UserEdit)
-        RETURN e
-        """
-        result = await db.query(query)
-        logger.debug(f"Raw user edits data: {result}")
-        
-        if not result:
-            logger.info("No user edits found, returning empty list")
-            return []
-        
-        user_edits = []
-        for record in result:
-            edit = record["e"]
-            edit_data = {
-                "documentId": edit["documentId"],
-                "field": edit["field"],
-                "originalValue": edit["originalValue"],
-                "editedValue": edit["editedValue"],
-                "editedBy": edit["editedBy"],
-                "editedAt": edit["editedAt"],
-                "reason": edit.get("reason")
-            }
-            try:
-                validated_edit = UserEditCreate(**edit_data)
-                user_edits.append(validated_edit)
-            except Exception as ve:
-                logger.error(f"Pydantic validation error for user edit {edit['documentId']}: {str(ve)}")
-                raise HTTPException(status_code=400, detail=f"Pydantic validation error for user edit {edit['documentId']}: {str(ve)}")
-        
-        logger.info("Exported user edits")
-        return user_edits
-    except Exception as e:
-        logger.error(f"Error exporting user edits: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error exporting user edits: {str(e)}")
-
-@app.get("/export/document/{document_id}/metadata", response_model=FileMetadataCreate)
-async def export_document_metadata(document_id: str, db: Neo4jConnection = Depends(get_db)):
-    try:
-        query = """
-        MATCH (d:Document {id: $document_id})-[:HAS_METADATA]->(m:FileMetadata)
-        RETURN m
-        """
-        result = await db.query(query, {"document_id": document_id})
-        if not result:
-            logger.warning(f"Metadata not found for document: {document_id}")
-            raise HTTPException(status_code=404, detail=f"Metadata not found for document: {document_id}")
-        metadata = result[0]["m"]
-        logger.info(f"Exported metadata for document: {document_id}")
-        return FileMetadataCreate(**metadata)
-    except Exception as e:
-        logger.error(f"Error exporting metadata for document {document_id}: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error exporting metadata: {str(e)}")
+def convert_neo4j_datetime(obj):
+    """Convert Neo4j datetime objects to ISO strings"""
+    from neo4j.time import DateTime as Neo4jDateTime
+    if isinstance(obj, dict):
+        return {key: convert_neo4j_datetime(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_neo4j_datetime(item) for item in obj]
+    elif isinstance(obj, Neo4jDateTime):
+        return obj.to_native().isoformat() + 'Z' if obj.to_native() else None
+    elif hasattr(obj, '__dict__'):
+        # Handle Neo4j Node and Relationship objects
+        return convert_neo4j_datetime(dict(obj))
+    else:
+        return obj

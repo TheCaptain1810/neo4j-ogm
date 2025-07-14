@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # FastAPI server URL
-BASE_URL = "http://localhost:6969"
+BASE_URL = "http://localhost:5000"
 
 # Neo4j connection settings
 NEO4J_URI = "neo4j://localhost:7687"
