@@ -4,8 +4,8 @@ from typing import Optional, List
 from dotenv import load_dotenv
 import os
 import logging
-from database import database, db_connection
-from services import DocumentService, UserService, SessionService, ClassifierService
+from database.database import database, db_connection
+from services.services import DocumentService, UserService, SessionService, ClassifierService
 from data.data import parameters
 
 # Configure logging

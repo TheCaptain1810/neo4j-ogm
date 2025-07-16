@@ -24,7 +24,7 @@ def test_ogm_setup():
         logger.info("✓ neomodel imported successfully")
         
         # Import the database connection
-        from database import db_connection
+        from database.database import db_connection
         logger.info("✓ Database connection imported successfully")
         
         # Import the models
@@ -32,7 +32,7 @@ def test_ogm_setup():
         logger.info("✓ Models imported successfully")
         
         # Import the services
-        from services import DocumentService, UserService, SessionService, ClassifierService
+        from services.services import DocumentService, UserService, SessionService, ClassifierService
         logger.info("✓ Services imported successfully")
         
         # Test data import
