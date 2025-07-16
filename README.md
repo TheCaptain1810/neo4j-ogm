@@ -76,10 +76,10 @@ Removes all data from the Neo4j database.
 Start the FastAPI server:
 
 ```bash
-uvicorn main:app --reload
+uvicorn main:app --reload --port 5000
 ```
 
-The API documentation will be available at `http://localhost:8000/docs`
+The API documentation will be available at `http://localhost:5000/docs`
 
 ## Key Benefits of OGM Conversion
 
@@ -111,6 +111,6 @@ With relationships:
 
 ## Development Notes
 
-- The `pyneo4j_ogm` package handles connection pooling automatically
+- The `neomodel` package handles connection pooling automatically
 - Models are registered and constraints are created on first use
 - Relationships are defined using type annotations for better IDE support
